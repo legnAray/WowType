@@ -240,20 +240,10 @@ def check_settings(spec, wc, home):
          [(v["name"], v["value"]) for v in by_key["ShuangpinScheme"]["values"]], "设置界面：双拼方案的名字")
     same([(label, value) for label, value in wc.INPUT_SCHEMES],
          [(v["name"], v["value"]) for v in by_key["InputScheme"]["values"]], "设置界面：输入方案的名字")
-    same([tuple(item) for item in wc.TRANSLATE_LANGUAGES],
-         [(v["name"], v["value"], v["english"]) for v in by_key["TranslateTarget"]["values"]],
-         "设置界面：TRANSLATE_LANGUAGES")
-    same([tuple(item) for item in wc.TRANSLATE_PROVIDERS],
-         [(p["name"], p["url"], p["model"]) for p in spec["translateProviders"]["items"]],
-         "设置界面：TRANSLATE_PROVIDERS")
     same([value for _label, value in wc.EMOJI_KEYS], by_key["EmojiKey"]["presets"]["settings"],
          "设置界面：EMOJI_KEYS")
-    same([value for _label, value in wc.VOICE_KEYS], by_key["VoiceKey"]["presets"]["settings"],
-         "设置界面：VOICE_KEYS")
     same([value for _label, value in wc.TOGGLE_KEYS], by_key["ToggleKey"]["presets"]["settings"],
          "设置界面：TOGGLE_KEYS")
-    same([value for _label, value in wc.TRANSLATE_MODE_KEYS], by_key["TranslateModeKey"]["presets"]["settings"],
-         "设置界面：TRANSLATE_MODE_KEYS")
     same_set([key for key, _label in wc.FUZZY_GROUPS], [s["key"] for s in mine if s.get("group") == "fuzzy"],
              "设置界面：FUZZY_GROUPS 的键")
 

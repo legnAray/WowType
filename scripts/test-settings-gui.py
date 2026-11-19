@@ -91,7 +91,11 @@ def run(app):
         errors.append("设置窗口没打开")
         app.quit()
         return GLib.SOURCE_REMOVE
-    for page in ("general", "input", "emoji", "voice", "translate", "words", "update"):
+    expected_pages = ("general", "input", "emoji", "words", "update")
+    check(tuple(win.nav_rows) == expected_pages, "文字版仍有已移除的功能页面")
+    check(not any(k.startswith(("Voice", "Translate")) for k in win.values),
+          "文字版仍暴露语音或翻译设置")
+    for page in expected_pages:
         step(f"打开「{page}」页", lambda p=page: win.show_page(p))
 
     def spin():
@@ -170,24 +174,9 @@ def run(app):
         check("Ctrl+Shift+空格 切换输入法" in toggle.get_subtitle(), f"没提示被 fcitx5 占着：{toggle.get_subtitle()}")
         toggle.set_selected(0)
         check(toggle.get_subtitle() == "", "不用切换键时还有提示")
-        # 互译键：互译没开时提示先去打开；也被 fcitx5 占着时提示占着
-        translate = win.key_rows["TranslateModeKey"]
-        translate.set_selected(1)
-        check(win.values["TranslateModeKey"] == "Control+Shift+Y", "互译键没存上")
-        check(translate.get_subtitle() == "先在「翻译」页打开互译", f"没提示先打开互译：{translate.get_subtitle()}")
-        win.fcitx_hotkey = {"TriggerKeys": {"0": "Control+Shift+Y"}}
-        win.refresh_translate_status()
-        check("fcitx5 也用 Ctrl+Shift+Y" in translate.get_subtitle(), f"互译键被占着没提示：{translate.get_subtitle()}")
-        win.fcitx_hotkey = {}
-        translate.set_selected(0)
-        check(translate.get_subtitle() == "", "不用互译键时还有提示")
     step("切换键", toggle_key)
 
     def entries():
-        win.url_row.set_text("http://127.0.0.1:9/v1")
-        win.key_entry.set_text("sk-test")
-        win.tmodel_row.set_text("m")
-        check(win.url_row.get_text() == "http://127.0.0.1:9/v1", "接口地址没写进去")
         win.word_entry.set_text("测试")
         win.pinyin_entry.set_text("a-b")  # 编码不对，标红
         win.pinyin_entry.set_text("ce shi")
@@ -206,8 +195,6 @@ def run(app):
                     w.close()
         step(name, go)
     dialog("关于", win.on_about)
-    dialog("删语音模型（取消）", lambda: win.on_voice_delete(None))
-    dialog("下载离线翻译模型（取消）", lambda: win.on_local_download(None))
     dialog("恢复默认设置（确定）", win.on_reset, answer=1)
     dialog("导出日志（取消）", win.on_export_log)
     dialog("导入自定义词（取消）", win.on_import_words)

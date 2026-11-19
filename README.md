@@ -30,6 +30,8 @@
 
 </div>
 
+> 本 fork 的 Linux 版默认只构建文字输入功能，已移除语音、翻译的设置入口、快捷键和运行依赖。具体改动、构建和验证方式见[本地文字版说明](docs/LOCAL-TEXT-ONLY.md)。下方保留上游项目介绍，功能范围以该说明为准。
+
 ## 特性
 
 <p align="center"><img src="docs/images/candidates.png" width="720" alt="在文本编辑器里打 hengxianghouxuanci：横排候选条，第一个是横向候选词，后面是横向、横向后选词……"><br>

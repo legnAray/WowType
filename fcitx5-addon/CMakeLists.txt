@@ -38,7 +38,6 @@ endif()
 
 add_library(wowtype MODULE
     src/wowtype_engine.cpp
-    src/clipboard_copy.cpp
 )
 # fcitx5 5.1.11 起才有 showCustomInputMethodInformation（切中英文时的小提示）
 if(Fcitx5Core_VERSION VERSION_GREATER_EQUAL 5.1.11)
@@ -69,13 +68,6 @@ if(WOWTYPE_CORE_STATIC)
     # 静态库里的符号不导出，免得和别的插件冲突
     find_package(Threads REQUIRED)
     target_link_libraries(wowtype PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m)
-    # 核心默认带语音输入（cargo 特性 voice），麦克风走 ALSA。
-    # 核心用 --no-default-features 编译时可以 -DWOWTYPE_VOICE=OFF 去掉这个依赖
-    option(WOWTYPE_VOICE "Rust core was built with the voice feature" ON)
-    if(WOWTYPE_VOICE)
-        find_package(ALSA REQUIRED)
-        target_link_libraries(wowtype PRIVATE ALSA::ALSA)
-    endif()
     target_link_options(wowtype PRIVATE "LINKER:--exclude-libs,ALL")
 else()
     set_target_properties(wowtype PROPERTIES
@@ -181,7 +173,7 @@ endif()
 # 按键行为测试（scripts/addon-test.sh 会打开它）：私有、无界面的 fcitx5 实例里加载插件按键
 option(WOWTYPE_BUILD_TESTS "Build the key-handling harness" OFF)
 if(WOWTYPE_BUILD_TESTS)
-    add_executable(wowtype-key-harness test/key_harness.cpp src/clipboard_copy.cpp)
+    add_executable(wowtype-key-harness test/key_harness.cpp)
     target_include_directories(wowtype-key-harness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     target_link_libraries(wowtype-key-harness PRIVATE Fcitx5::Core Fcitx5::Utils)
     # 经 D-Bus 问插件版本（Version）的用例拿它对照

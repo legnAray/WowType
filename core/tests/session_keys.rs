@@ -913,12 +913,22 @@ fn paging_keys() {
     assert!(!type_keys(&mut session, "<tab>").handled);
     assert_eq!(type_keys(&mut session, ",").commit, Some(format!("{}，", all[0])));
 
-    // 只有一页：- 没页可翻，当符号：先上屏候选再上屏 -
+    // 只有一页：- = 仍是翻页键，重复按下也不提交、不改候选或编辑区。
     let mut session = with(many_engine());
     type_keys(&mut session, "nihao");
-    assert!(session.frame(false).cand_count < 9 && !session.frame(false).has_next);
-    let frame = type_keys(&mut session, "-");
-    assert!(frame.commit.is_some_and(|c| c.ends_with('-')));
+    let before = session.frame(false);
+    assert!(before.cand_count > 0 && before.cand_count < 9 && !before.has_next);
+    let candidates = shown_texts(&mut session);
+    for keys in ["-", "-", "=", "="] {
+        let frame = type_keys(&mut session, keys);
+        assert!(frame.handled);
+        assert!(frame.commit.is_none(), "{keys} must not commit a candidate");
+        assert_eq!(frame.preedit, before.preedit);
+        assert_eq!(frame.cand_start, before.cand_start);
+        assert_eq!(frame.cand_cursor, before.cand_cursor);
+        assert_eq!(shown_texts(&mut session), candidates);
+    }
+    assert!(type_keys(&mut session, "<sp>").commit.is_some());
 }
 
 #[test]

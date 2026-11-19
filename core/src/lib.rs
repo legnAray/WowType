@@ -17,6 +17,7 @@ pub mod fsutil;
 pub mod graph;
 pub mod learn;
 pub mod lexicon;
+#[cfg(feature = "translation")]
 pub mod llama;
 pub mod lm;
 pub mod nnlm;
@@ -30,7 +31,15 @@ pub mod shuangpin;
 pub mod syllable;
 pub mod symbols;
 pub mod train;
+#[cfg(feature = "translation")]
 pub mod translate;
+#[cfg(not(feature = "translation"))]
+#[path = "translate_types.rs"]
+pub mod translate;
+#[cfg(feature = "translation")]
+pub mod translate_ffi;
+#[cfg(not(feature = "translation"))]
+#[path = "translate_stub.rs"]
 pub mod translate_ffi;
 #[cfg(feature = "voice")]
 pub mod voice_ffi;

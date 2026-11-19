@@ -160,6 +160,7 @@ pub trait TranslateBackend {
     fn tag(&self, text: &str) -> String;
 }
 
+#[cfg(feature = "translation")]
 impl TranslateBackend for crate::translate::Translator {
     fn start(&self, text: &str) {
         crate::translate::Translator::start(self, text);
@@ -2096,8 +2097,11 @@ impl<'e> Session<'e> {
             self.next_page();
             return Some(true);
         }
-        if (char_prev || char_next) && (has_prev || has_next) {
-            // 已经在第一页 / 最后一页：吃掉，不当标点上屏（只有一页时照常当标点）
+        let minus_equal = keys & page_keys::MINUS != 0
+            && matches!(sym, keysym::MINUS | keysym::EQUAL);
+        if (char_prev || char_next) && (has_prev || has_next || minus_equal) {
+            // 启用的 - = 始终是翻页键：只有一页也停住，不把候选和符号上屏。
+            // 逗号、句号等仍保留只有一页时输入标点的行为。
             return Some(true);
         }
         None

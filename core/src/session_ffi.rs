@@ -839,11 +839,17 @@ pub unsafe extern "C" fn wowtype_session_set_translator(
         return;
     };
     // 生命周期由外壳保证（和引擎一样）
+    #[cfg(feature = "translation")]
     let backend: Option<&'static dyn crate::session::TranslateBackend> =
         unsafe { translator.as_ref() }.map(|t| {
             let inner: &dyn crate::session::TranslateBackend = &t.translator;
             unsafe { &*(inner as *const dyn crate::session::TranslateBackend) }
         });
+    #[cfg(not(feature = "translation"))]
+    let backend = {
+        let _ = translator;
+        None
+    };
     handle.session.set_translator(backend);
     handle.backend = None;
 }

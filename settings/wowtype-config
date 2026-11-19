@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""WowType 设置：候选排列、模糊音、语音输入键、互译、自定义词、检查更新。
+"""WowType 文字输入设置：候选排列、模糊音、自定义词、检查更新。
 
 改的是 fcitx5 读的同一个配置文件（~/.config/fcitx5/conf/wowtype.conf）和自定义词文件
 （~/.local/share/wowtype/custom.tsv），改完经 D-Bus 让 fcitx5 重新读，立刻生效。
@@ -109,14 +109,10 @@ def _xdg(name, fallback):
 CONFIG_FILE = os.path.join(_xdg("XDG_CONFIG_HOME", "~/.config"), "fcitx5", "conf", "wowtype.conf")
 DATA_DIR = os.path.join(_xdg("XDG_DATA_HOME", "~/.local/share"), "wowtype")
 CUSTOM_FILE = os.environ.get("WOWTYPE_CUSTOM") or os.path.join(DATA_DIR, "custom.tsv")
-VOICE_MODEL_DIR = os.environ.get("WOWTYPE_VOICE_MODEL_DIR") or os.path.join(DATA_DIR, "wtlocal")
 STATE_DIR = os.path.join(_xdg("XDG_STATE_HOME", "~/.local/state"), "wowtype")
 # 插件和设置界面共用的日志（插件那边见 fcitx5-addon/src/wowtype_log.h），不记打的字
 LOG_FILE = os.environ.get("WOWTYPE_LOG") or os.path.join(STATE_DIR, "wowtype.log")
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
-# 互译用的 API Key 单独存一个只有自己能读的文件（wowtype.conf 别的程序也能读），插件每次请求时现读
-TRANSLATE_KEY_FILE = os.environ.get("WOWTYPE_TRANSLATE_KEY_FILE") or os.path.join(
-    _xdg("XDG_CONFIG_HOME", "~/.config"), "wowtype", "translate.key")
 ISSUES_URL = f"{HOMEPAGE}/issues/new"
 # 界面上的中文标点要用简体中文字体画，见 SettingsApp.update_font_css；装了哪个用哪个
 CJK_SC_FONTS = ["Noto Sans CJK SC", "Source Han Sans SC", "Source Han Sans CN",
@@ -311,6 +307,8 @@ WUBI_CANDIDATES = [
 
 # 键名、默认值、范围、下面各选项列表以 spec/config.json 为准（设置契约，插件和 macOS 也对照它）；
 # 改这些要先改规格，scripts/test-config-contract.py 对照
+REMOVED_FEATURE_KEYS = frozenset(('Translate', 'TranslateBaseUrl', 'TranslateFormal', 'TranslateIdleMinutes', 'TranslateLlamaServer', 'TranslateLocal', 'TranslateLocalModel', 'TranslateModeKey', 'TranslateModel', 'TranslateTarget', 'Voice', 'VoiceCopy', 'VoiceKey'))
+
 DEFAULTS = {
     "CandidateLayout": "Horizontal",
     "ArrowKeys": "Candidates",
@@ -357,22 +355,9 @@ DEFAULTS = {
     "AutoSpace": "False",
     "AutoSpaceLetters": "True",
     "AutoSpaceDigits": "True",
-    "Voice": "True",
-    "VoiceCopy": "False",
-    "VoiceKey": "Alt_R",
     "EmojiSuggest": "True",
     "EmojiKey": "Super+period",
     "ToggleKey": "",
-    "TranslateModeKey": "",
-    "Translate": "False",
-    "TranslateTarget": "en",
-    "TranslateBaseUrl": "",
-    "TranslateModel": "",
-    "TranslateFormal": "False",
-    "TranslateLocal": "True",
-    "TranslateLocalModel": "",
-    "TranslateLlamaServer": "",
-    "TranslateIdleMinutes": "5",
     "CheckUpdate": "True",
     "BetaUpdates": "False",
     # 词库文件，留空用默认的雾凇；切到万象时是 WANXIANG_LEXICON
@@ -382,38 +367,10 @@ DEFAULTS = {
 # 数字项的范围（界面上的数字框），和插件的 IntConstrain 一样
 RANGES = {
     "PageSize": (3, 9),
-    "TranslateIdleMinutes": (0, 240),
 }
 
-# 互译语言（存盘名和插件的 WowtypeTranslateTarget、core/src/translate.rs 的 LANGUAGES 一致）
-TRANSLATE_LANGUAGES = [
-    ("英语", "en", "English"),
-    ("日语", "ja", "Japanese"),
-    ("韩语", "ko", "Korean"),
-    ("法语", "fr", "French"),
-    ("德语", "de", "German"),
-    ("西班牙语", "es", "Spanish"),
-    ("俄语", "ru", "Russian"),
-    ("葡萄牙语", "pt", "Portuguese"),
-    ("意大利语", "it", "Italian"),
-    ("越南语", "vi", "Vietnamese"),
-    ("泰语", "th", "Thai"),
-    ("印尼语", "id", "Indonesian"),
-    ("阿拉伯语", "ar", "Arabic"),
-]
 
 # 常见的 OpenAI 格式服务：名字、接口地址、模型框空着时建议的模型（各家长期有效的别名）
-TRANSLATE_PROVIDERS = [
-    ("OpenAI", "https://api.openai.com/v1", ""),
-    ("DeepSeek", "https://api.deepseek.com/v1", "deepseek-chat"),
-    ("通义千问（阿里云百炼）", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
-    ("Kimi（月之暗面）", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
-    ("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
-    ("硅基流动", "https://api.siliconflow.cn/v1", ""),
-    ("OpenRouter", "https://openrouter.ai/api/v1", ""),
-    ("Ollama（本机）", "http://127.0.0.1:11434/v1", ""),
-    ("其他（自己填地址）", "", ""),
-]
 
 # 输入方案（存盘名和插件的 WowtypeInputScheme 一致）
 INPUT_SCHEMES = [
@@ -493,7 +450,6 @@ ENUMS = {
     "InitialMode": tuple(value for _label, value in INITIAL_MODES),
     "PunctuationStyle": tuple(value for _label, value in PUNCT_STYLES),
     "SelectKeys": tuple(value for _label, value in SELECT_KEYS),
-    "TranslateTarget": tuple(code for _label, code, _english in TRANSLATE_LANGUAGES),
 }
 
 # 设置窗口的样式（照微信输入法：薄荷绿渐变侧栏、绿色选中块、白色圆角卡片）
@@ -539,14 +495,6 @@ STYLE_ACCENT_VARS = """
 :root { --accent-bg-color: #0EAF76; --accent-fg-color: #ffffff; --accent-color: %s; }
 """
 
-VOICE_KEYS = [
-    ("右 Alt", "Alt_R"),
-    ("右 Ctrl", "Control_R"),
-    ("菜单键", "Menu"),
-    ("F8", "F8"),
-    ("F9", "F9"),
-    ("F10", "F10"),
-]
 
 EMOJI_KEYS = [
     ("Super + .", "Super+period"),
@@ -554,20 +502,13 @@ EMOJI_KEYS = [
     ("Ctrl + Shift + E", "Control+Shift+E"),
     ("不用快捷键", ""),
 ]
-# 另设的切换中 / 英文、进出互译的快捷键（#143、#87）。只放 fcitx5 默认没占的键（Ctrl+空格是它切换
 # 启用/禁用输入法的键）；文件里写了别的键也认，下拉框里多一项「其他」
 TOGGLE_KEYS = [
     ("不用（单按 Shift 照常）", ""),
     ("Ctrl + Shift + 空格", "Control+Shift+space"),
 ]
-TRANSLATE_MODE_KEYS = [
-    ("不用", ""),
-    ("Ctrl + Shift + Y", "Control+Shift+Y"),
-]
 # 两个快捷键行的说明（和 macOS 设置的一样）
-TOGGLE_KEY_INFO = "按它在中文、英文之间切（在「译」里按回到中文）。单按 Shift 照常能用。"
-TRANSLATE_MODE_KEY_INFO = ("按它进「译」，在「译」里再按回到原来的模式。设了它，单按 Shift 就只在中文、英文之间切。\n\n"
-                           "要先在「翻译」页打开互译；没打开、密码框里这个键交给应用。")
+TOGGLE_KEY_INFO = "按它在中文、英文之间切。单按 Shift 照常能用。"
 
 # 合法拼音音节（和 core/src/syllable.rs 的 SYLLABLES 一致，核心的测试会比对；macOS 设置直接用核心的）
 SYLLABLES = frozenset("""
@@ -656,11 +597,10 @@ def read_config():
         elif not in_group and sep and key == "Shuangpin":
             # 0.3.12 及以前的双拼开关：只在没有 InputScheme 时算，不放进「不认识的行」，下次存盘就没了
             old_shuangpin = unquote_value(value.strip()) == "True"
+        elif not in_group and sep and key in REMOVED_FEATURE_KEYS:
+            continue
         elif line.strip():
             extra.append(line)
-    # 0.3.10 及以前没有 TranslateLocal：已经填好翻译接口的，接着用接口（设置里默认是本地模型）
-    if "TranslateLocal" not in seen and values["TranslateBaseUrl"].strip():
-        values["TranslateLocal"] = "False"
     if "InputScheme" not in seen and old_shuangpin:
         values["InputScheme"] = "Shuangpin"
     return values, extra
@@ -691,14 +631,11 @@ def config_lines(values):
     """要写进 wowtype.conf 的设置项：只写和默认值不一样的。没写的项插件读成默认值（reloadConfig 先重置成默认），
     以后改了默认值，动过设置的老用户也跟着新默认值走。
 
-    例外是读的时候要按别的项推断的（spec/config.json 的 whenMissing）：TranslateBaseUrl 填了时
-    TranslateLocal 缺省读成 False，这时 True 也要明写。InputScheme 推断靠的是旧键 Shuangpin，
-    它读进来就丢了，不会再写回文件，不用管。"""
+    旧键 Shuangpin 读进来就转换成 InputScheme，不会再写回文件。"""
     lines = []
     for key in DEFAULTS:
         value = values.get(key, DEFAULTS[key])
-        if value == DEFAULTS[key] and not (key == "TranslateLocal"
-                                           and values.get("TranslateBaseUrl", "").strip()):
+        if value == DEFAULTS[key]:
             continue
         lines.append(f"{key}={quote_value(value)}")
     return lines
@@ -1167,7 +1104,6 @@ def fcitx_hotkey_taking(key, hotkey=None):
         if any(same_key(key, k) for k in key_list(hotkey.get(option))):
             return option
     return None
-
 
 
 # ---------------------------------------------------------------- 主题
@@ -2067,9 +2003,7 @@ def collect_diagnostics():
 
     add("## WowType 设置（wowtype.conf）")
     values, _extra = read_config()
-    values["TranslateBaseUrl"] = mask_url(values["TranslateBaseUrl"])
     add(", ".join(f"{k}={v}" for k, v in values.items()))
-    add(f"互译 Key：{'已设置' if read_translate_key() else '没设置'}")
     add("")
 
     add("## 数据文件")
@@ -2093,7 +2027,7 @@ def collect_diagnostics():
                  os.path.join(DATA_DIR, "s2t.tsv"), os.path.join(SYSTEM_DATA_DIR, "s2t.tsv"),
                  os.path.join(DATA_DIR, "lexicon.tsv.wcache"),
                  os.path.join(DATA_DIR, "wetype", "nlrgpt2_nnlm.bin"),
-                 VOICE_MODEL_DIR]:
+                 ]:
         line = _file_line(path)
         if line:
             if path in data_files or os.path.basename(path) in DATA_FILES:
@@ -3179,352 +3113,6 @@ def lexicon_self_test():
 # ---------------------------------------------------------------- 界面
 
 
-# ---------------------------------------------------------------- 互译
-
-
-# 本地翻译模型：腾讯混元 HY-MT 1.5 1.8B（GGUF，Q4_K_M）。不随 WowType 分发，用户确认许可后下载
-LOCAL_MODEL_FILE = "HY-MT1.5-1.8B-Q4_K_M.gguf"
-LOCAL_MODEL_URL = os.environ.get("WOWTYPE_LOCAL_MODEL_URL") or (
-    "https://huggingface.co/tencent/HY-MT1.5-1.8B-GGUF/resolve/main/" + LOCAL_MODEL_FILE)
-LOCAL_MODEL_SHA256 = os.environ.get("WOWTYPE_LOCAL_MODEL_SHA256") or (
-    "4383ac0c3c8e476de98ff979c2a3f069f8c4fb385e7860cf2d28da896cc477c7")
-LOCAL_MODEL_SIZE = 1133080512
-LOCAL_MODEL_PAGE = "https://huggingface.co/tencent/HY-MT1.5-1.8B-GGUF"
-LOCAL_MODEL_LICENSE = LOCAL_MODEL_PAGE + "/blob/main/License.txt"
-LOCAL_MODEL_TERMS = ("模型属于腾讯，用的是《腾讯混元社区许可协议》：不适用于欧盟、英国和韩国境内，"
-                     "月活超过 1 亿的产品要另外向腾讯申请。模型从 Hugging Face 下载，WowType 不分发它。")
-MODELS_DIR = os.path.join(DATA_DIR, "models")
-
-
-TRANSLATE_ENGINES = [
-    ("本地模型（离线）", "不联网、不用账号，打的字不出这台电脑；一句话等 1–3 秒"),
-    ("自定义翻译服务", "填你自己的翻译接口（DeepSeek、通义千问、Ollama……），要联网"),
-]
-
-
-def local_model_path(values):
-    custom = values.get("TranslateLocalModel", "").strip()
-    return os.path.expanduser(custom) if custom else os.path.join(MODELS_DIR, LOCAL_MODEL_FILE)
-
-
-# llama-server：系统里没有时从 llama.cpp 官方发布页下载（MIT 许可）。钉死一个构建和它的 SHA256，
-# 要换版本就改这里。包里按 CPU 带了多份内核，运行时自己挑；需要 glibc 2.34 以上。
-LLAMA_BUILD = "b12110"
-LLAMA_ASSETS = {
-    "x86_64": ("ubuntu-x64", 23051958,
-               "368227edcc229be5f9bed16a2223d79b5e41d0ac2e19bcf5825e82291c060e55"),
-    "aarch64": ("ubuntu-arm64", 18723578,
-                "4758b51335e37b4346251f2687d64841ff1c07ecb27fc46323945bb2ec9c44d2"),
-}
-LLAMA_PAGE = "https://github.com/ggml-org/llama.cpp"
-# 和核心 llama::downloaded_server 对着：$XDG_DATA_HOME/wowtype/llama/llama-server
-LLAMA_DIR = os.path.join(DATA_DIR, "llama")
-
-
-def llama_asset(machine=None, nixos=None):
-    """这台机器能用的官方包：（下载地址, 大小, sha256）。没有合适的返回 None。
-
-    NixOS 跑不了官方二进制（没有 /lib64/ld-linux），要在系统配置里装 llama-cpp。"""
-    machine = os.uname().machine if machine is None else machine
-    nixos = os.path.exists("/etc/NIXOS") if nixos is None else nixos
-    if nixos or machine not in LLAMA_ASSETS:
-        return None
-    name, size, sha256 = LLAMA_ASSETS[machine]
-    url = os.environ.get("WOWTYPE_LLAMA_URL") or (
-        f"{LLAMA_PAGE}/releases/download/{LLAMA_BUILD}/llama-{LLAMA_BUILD}-bin-{name}.tar.gz")
-    return url, size, os.environ.get("WOWTYPE_LLAMA_SHA256") or sha256
-
-
-def downloaded_llama_server(root=None):
-    path = os.path.join(root or LLAMA_DIR, "llama-server")
-    return path if os.path.isfile(path) and os.access(path, os.X_OK) else None
-
-
-def find_llama_server(setting="", downloaded=None):
-    """llama-server 在哪：写了路径就看路径；只写名字（或空着）先在 PATH 里找，再看设置里下载的
-    那份。找不到返回 None。和核心 LocalConfig::server_path 一个顺序。"""
-    name = setting.strip() or "llama-server"
-    if "/" in name:
-        path = os.path.expanduser(name)
-        return path if os.path.isfile(path) and os.access(path, os.X_OK) else None
-    return shutil.which(name) or (downloaded_llama_server() if downloaded is None else downloaded)
-
-
-def unpack_llama(archive, root):
-    """把官方包解到 root（先解到 root.new，能跑了再换上去）。只要 llama-server 和它的动态库。
-
-    包里的路径、链接都查一遍，不往目录外面写。llama-server 跑不起来（缺系统库、glibc 太旧）时
-    抛 ValueError，带上它报的错。"""
-    import tarfile
-    fresh = root + ".new"
-    shutil.rmtree(fresh, ignore_errors=True)
-    os.makedirs(fresh)
-    try:
-        with tarfile.open(archive, "r:gz") as tar:
-            for member in tar:
-                name = os.path.basename(member.name)
-                parts = member.name.split("/")
-                if ".." in parts or member.name.startswith("/") or len(parts) != 2:
-                    continue  # 只要顶层目录下的文件
-                wanted = name == "llama-server" or (name.startswith("lib") and ".so" in name)
-                if not wanted:
-                    continue
-                target = os.path.join(fresh, name)
-                if member.issym():
-                    if "/" in member.linkname or member.linkname in ("", ".", ".."):
-                        raise ValueError(f"包里的链接不对：{member.name}")
-                    os.symlink(member.linkname, target)
-                elif member.isfile():
-                    with tar.extractfile(member) as src, open(target, "wb") as out:
-                        shutil.copyfileobj(src, out)
-                    os.chmod(target, 0o755)
-        server = os.path.join(fresh, "llama-server")
-        if not os.path.isfile(server):
-            raise ValueError("包里没有 llama-server")
-        try:
-            run = subprocess.run([server, "--version"], capture_output=True, text=True, timeout=30)
-        except (OSError, subprocess.TimeoutExpired) as e:
-            raise ValueError(f"llama-server 跑不起来：{e}") from e
-        if run.returncode != 0:
-            lines = (run.stderr or run.stdout).strip().splitlines()
-            raise ValueError("llama-server 跑不起来：" + (lines[-1] if lines else f"退出码 {run.returncode}"))
-        with open(os.path.join(fresh, "VERSION"), "w", encoding="utf-8") as f:
-            f.write(LLAMA_BUILD + "\n")
-        shutil.rmtree(root, ignore_errors=True)
-        os.replace(fresh, root)
-    except (tarfile.TarError, EOFError) as e:
-        raise ValueError(f"包解不开：{e}") from e
-    finally:
-        shutil.rmtree(fresh, ignore_errors=True)
-    return os.path.join(root, "llama-server")
-
-
-def install_llama_server(progress=None, cancelled=None, root=None, asset=None):
-    """下载官方包、校验、解到 LLAMA_DIR。返回 llama-server 的路径。
-
-    这台机器没有合适的包、校验不过、跑不起来抛 ValueError；网络出错抛 OSError。"""
-    asset = asset or llama_asset()
-    if not asset:
-        raise ValueError("这台机器没有现成的 llama-server 可以下载，请自己装 llama.cpp")
-    url, _size, sha256 = asset
-    root = root or LLAMA_DIR
-    archive = root + ".tar.gz"
-    download_model(archive, url, sha256, progress=progress, cancelled=cancelled)
-    try:
-        return unpack_llama(archive, root)
-    finally:
-        os.unlink(archive)
-
-
-def remove_llama_server(root=None):
-    shutil.rmtree(root or LLAMA_DIR, ignore_errors=True)
-
-
-class DownloadCancelled(Exception):
-    pass
-
-
-def _digest_of(path, algo="sha256"):
-    digest = hashlib.new(algo)
-    with open(path, "rb") as f:
-        while chunk := f.read(1 << 20):
-            digest.update(chunk)
-    return digest
-
-
-def download_model(dest, url=None, sha256=None, progress=None, cancelled=None, timeout=30,
-                   algo="sha256"):
-    """下载到 dest（先写 dest.part，断了能接着下），校验 SHA256（algo="md5" 时 sha256 给 MD5）后改名。
-
-    progress(已下载, 总大小) 时不时调一下；cancelled() 返回 True 时停下（.part 留着下次续）。
-    校验不过就删掉 .part 抛 ValueError；网络出错抛 OSError。"""
-    url = url or LOCAL_MODEL_URL
-    sha256 = (sha256 or LOCAL_MODEL_SHA256).lower()
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    part = dest + ".part"
-    have = os.path.getsize(part) if os.path.exists(part) else 0
-    request = urllib.request.Request(url, headers={"User-Agent": f"WowType/{current_version()}"})
-    if have:
-        request.add_header("Range", f"bytes={have}-")
-    try:
-        response = urllib.request.urlopen(request, timeout=timeout)
-    except urllib.error.HTTPError as e:
-        if e.code != 416 or not have:
-            raise
-        response = None  # .part 已经下完整了，只差校验
-    done = have
-    if response is None:
-        digest = _digest_of(part, algo)
-    else:
-        with response:
-            if have and response.status != 206:
-                have = done = 0  # 服务不支持续传：从头来
-            length = int(response.headers.get("Content-Length") or 0)
-            total = have + length if length else 0
-            digest = _digest_of(part, algo) if have else hashlib.new(algo)
-            last = 0.0
-            with open(part, "ab" if have else "wb") as out:
-                while chunk := response.read(1 << 16):
-                    if cancelled and cancelled():
-                        raise DownloadCancelled()
-                    out.write(chunk)
-                    digest.update(chunk)
-                    done += len(chunk)
-                    now = time.monotonic()
-                    if progress and now - last > 0.2:
-                        last = now
-                        progress(done, total)
-    if digest.hexdigest() != sha256:
-        os.unlink(part)
-        raise ValueError(f"下载的文件校验不对（{algo.upper()} 不一致），已删除，请重试")
-    os.replace(part, dest)
-    if progress:
-        progress(done, done)
-    return dest
-
-
-def download_model_cli(accepted):
-    """命令行下载本地翻译模型；要先同意许可（--accept-license）。"""
-    print(LOCAL_MODEL_TERMS)
-    print(f"协议全文：{LOCAL_MODEL_LICENSE}\n")
-    if not accepted:
-        if not sys.stdin.isatty():
-            print("加 --accept-license 表示接受上面的许可")
-            return 2
-        if input("接受这份许可并下载？[y/N] ").strip().lower() not in ("y", "yes"):
-            return 1
-    dest = os.path.join(MODELS_DIR, LOCAL_MODEL_FILE)
-
-    def progress(done, total):
-        text = f"{human_size(done)} / {human_size(total)}" if total else human_size(done)
-        print(f"\r下载中 {text}   ", end="", flush=True)
-    try:
-        if os.path.isfile(dest):
-            print(f"模型已经有了：{dest}")
-        else:
-            download_model(dest, progress=progress)
-            print(f"\n模型好了：{dest}")
-        if server := find_llama_server(read_config().get("TranslateLlamaServer", "")):
-            print(f"llama-server：{server}")
-        elif llama_asset():
-            print(f"系统里没有 llama-server，从 {LLAMA_PAGE} 下载 {LLAMA_BUILD}")
-            print(f"\nllama-server 好了：{install_llama_server(progress=progress)}")
-        else:
-            print("系统里没有 llama-server，这台机器也没有现成的可以下载，请自己装 llama.cpp")
-            return 1
-    except (OSError, ValueError) as e:
-        print(f"\n没下完：{e}（再跑一次会接着下）")
-        return 1
-    except KeyboardInterrupt:
-        print("\n已暂停，再跑一次会接着下")
-        return 130
-    return 0
-
-
-def llama_self_test():
-    """unpack_llama / install_llama_server：只留 llama-server 和动态库、不往外写、跑不起来就不装。"""
-    import io
-    import tarfile
-    import tempfile
-
-    def pack(path, files, links=()):
-        with tarfile.open(path, "w:gz") as tar:
-            for name, body in files:
-                info = tarfile.TarInfo(name)
-                info.size = len(body)
-                info.mode = 0o755
-                tar.addfile(info, io.BytesIO(body))
-            for name, to in links:
-                info = tarfile.TarInfo(name)
-                info.type = tarfile.SYMTYPE
-                info.linkname = to
-                tar.addfile(info)
-
-    ok = b"#!/bin/sh\necho version: test\n"
-    with tempfile.TemporaryDirectory() as tmp:
-        root = os.path.join(tmp, "llama")
-        archive = os.path.join(tmp, "a.tar.gz")
-        pack(archive, [("llama-x/llama-server", ok), ("llama-x/libllama.so.0.9", b"lib"),
-                       ("llama-x/llama-cli", ok), ("llama-x/../../evil", b"x"),
-                       ("llama-x/sub/libdeep.so", b"x")],
-             [("llama-x/libllama.so", "libllama.so.0.9")])
-        server = unpack_llama(archive, root)
-        assert server == downloaded_llama_server(root)
-        assert sorted(os.listdir(root)) == ["VERSION", "libllama.so", "libllama.so.0.9", "llama-server"]
-        assert os.readlink(os.path.join(root, "libllama.so")) == "libllama.so.0.9"
-        assert not os.path.exists(os.path.join(tmp, "evil")) and not os.path.exists(root + ".new")
-        assert find_llama_server("", downloaded=server) in (shutil.which("llama-server"), server)
-        # 跑不起来的不装，原来那份留着
-        pack(archive, [("llama-x/llama-server", b"#!/bin/sh\necho 'libgomp.so.1: not found' >&2\nexit 127\n")])
-        try:
-            unpack_llama(archive, root)
-            raise AssertionError("跑不起来的 llama-server 不该装上")
-        except ValueError as e:
-            assert "libgomp" in str(e), e
-        assert downloaded_llama_server(root) == server and not os.path.exists(root + ".new")
-        for bad in ([("llama-x/readme", b"x")], None):
-            if bad is None:
-                with open(archive, "wb") as f:
-                    f.write(b"not a tarball")
-            else:
-                pack(archive, bad)
-            try:
-                unpack_llama(archive, root)
-                raise AssertionError("坏包不该装上")
-            except ValueError:
-                pass
-        # 指到目录外面的链接
-        pack(archive, [("llama-x/llama-server", ok)], [("llama-x/libx.so", "../../etc/passwd")])
-        try:
-            unpack_llama(archive, root)
-            raise AssertionError("链接指到外面")
-        except ValueError:
-            pass
-        # 整条路：下载、校验、解包；校验不对不装
-        pack(archive, [("llama-x/llama-server", ok)])
-        good = hashlib.sha256(open(archive, "rb").read()).hexdigest()
-        url = "file://" + urllib.request.pathname2url(archive)
-        fresh = os.path.join(tmp, "fresh")
-        assert install_llama_server(root=fresh, asset=(url, 0, good)) == downloaded_llama_server(fresh)
-        assert not os.path.exists(fresh + ".tar.gz")
-        remove_llama_server(fresh)
-        assert downloaded_llama_server(fresh) is None
-        try:
-            install_llama_server(root=fresh, asset=(url, 0, "0" * 64))
-            raise AssertionError("校验不对")
-        except ValueError:
-            pass
-        assert downloaded_llama_server(fresh) is None
-    assert llama_asset("x86_64", False)[0].endswith(f"llama-{LLAMA_BUILD}-bin-ubuntu-x64.tar.gz") \
-        or os.environ.get("WOWTYPE_LLAMA_URL")
-    assert llama_asset("x86_64", True) is None and llama_asset("riscv64", False) is None
-    assert llama_asset("aarch64", False)[2] == (
-        os.environ.get("WOWTYPE_LLAMA_SHA256") or LLAMA_ASSETS["aarch64"][2])
-
-
-def translate_engine_self_test():
-    """默认本地模型；0.3.10 的配置（没有 TranslateLocal、填了接口）接着用接口。"""
-    global CONFIG_FILE
-    import tempfile
-    saved = CONFIG_FILE
-    with tempfile.TemporaryDirectory() as tmp:
-        CONFIG_FILE = os.path.join(tmp, "wowtype.conf")
-        try:
-            assert read_config()[0]["TranslateLocal"] == "True"  # 没有配置文件
-            for text, local in (("Translate=True\nTranslateBaseUrl=https://api.example.com/v1\n", "False"),
-                                ("Translate=True\nTranslateBaseUrl=\n", "True"),
-                                ("TranslateBaseUrl=https://a/v1\nTranslateLocal=True\n", "True"),
-                                ("TranslateLocal=False\n", "False")):
-                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                    f.write(text)
-                assert read_config()[0]["TranslateLocal"] == local, text
-            values, extra = read_config()
-            write_config(values, extra)  # 写回去以后这一项是明确的，不再靠推断
-            assert "TranslateLocal=False" in open(CONFIG_FILE, encoding="utf-8").read()
-        finally:
-            CONFIG_FILE = saved
-
-
 def restart_self_test():
     """升级后要不要提醒重启输入法。"""
     assert addon_version_from("0.4.1") == "0.4.1"
@@ -3707,7 +3295,7 @@ def setup_self_test():
 
 
 def config_write_self_test():
-    """存盘只写和默认值不一样的项；不认识的行留着；要推断的 TranslateLocal 照写。"""
+    """只存改过的项，保留未知选项，清理已移除功能的旧选项。"""
     global CONFIG_FILE
     import tempfile
     saved = CONFIG_FILE
@@ -3727,498 +3315,19 @@ def config_write_self_test():
             text = open(CONFIG_FILE, encoding="utf-8").read()
             assert text == "PageSize=5\nFutureKey=x\n[Hotkey]\nTriggerKeys=\n", text
             assert read_config()[0] == {**DEFAULTS, "PageSize": "5"}
-            # 填了翻译接口又选回本地模型：TranslateLocal=True 不写的话读回来是 False
-            values = {**DEFAULTS, "TranslateBaseUrl": "https://a/v1", "TranslateLocal": "True"}
-            assert config_lines(values) == ["TranslateBaseUrl=https://a/v1", "TranslateLocal=True"]
-            write_config(values, [])
-            assert read_config()[0]["TranslateLocal"] == "True"
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                f.write("Voice=True\nTranslate=True\nTranslateBaseUrl=https://unused.invalid/v1\nFutureKey=x\n")
+            values, extra = read_config()
+            assert not (set(values) & REMOVED_FEATURE_KEYS)
+            write_config(values, extra)
+            assert open(CONFIG_FILE, encoding="utf-8").read() == "FutureKey=x\n"
             assert config_lines({**DEFAULTS, "Lexicon": " /a b "}) == ['Lexicon=" /a b "']
         finally:
             CONFIG_FILE = saved
 
 
-def download_self_test():
-    """用本机临时 HTTP 服务测 download_model：整个下、续传、校验失败、取消。"""
-    import http.server
-    import tempfile
-    blob = os.urandom(300_000)
-    good = hashlib.sha256(blob).hexdigest()
-
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def log_message(self, *_a):
-            pass
-
-        def do_GET(self):
-            start = 0
-            if rng := self.headers.get("Range"):
-                start = int(rng.split("=")[1].split("-")[0])
-                if start >= len(blob):
-                    self.send_response(416)
-                    self.end_headers()
-                    return
-                self.send_response(206)
-            else:
-                self.send_response(200)
-            self.send_header("Content-Length", str(len(blob) - start))
-            self.end_headers()
-            self.wfile.write(blob[start:])
-
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    url = f"http://127.0.0.1:{server.server_address[1]}/m.gguf"
-    with tempfile.TemporaryDirectory() as tmp:
-        dest = os.path.join(tmp, "models", "m.gguf")
-        assert download_model(dest, url, good) == dest
-        assert open(dest, "rb").read() == blob and not os.path.exists(dest + ".part")
-        os.unlink(dest)
-        with open(dest + ".part", "wb") as f:  # 续传
-            f.write(blob[:123_456])
-        download_model(dest, url, good)
-        assert open(dest, "rb").read() == blob
-        os.unlink(dest)
-        with open(dest + ".part", "wb") as f:  # .part 已完整：服务回 416
-            f.write(blob)
-        download_model(dest, url, good)
-        assert open(dest, "rb").read() == blob
-        os.unlink(dest)
-        try:
-            download_model(dest, url, "0" * 64)
-            raise AssertionError("校验不对应该报错")
-        except ValueError:
-            assert not os.path.exists(dest) and not os.path.exists(dest + ".part")
-        try:
-            download_model(dest, url, good, cancelled=lambda: True)
-            raise AssertionError("取消应该报 DownloadCancelled")
-        except DownloadCancelled:
-            assert not os.path.exists(dest) and os.path.exists(dest + ".part")
-        assert local_model_path({"TranslateLocalModel": ""}).endswith(LOCAL_MODEL_FILE)
-        assert local_model_path({"TranslateLocalModel": "~/x.gguf"}) == os.path.expanduser("~/x.gguf")
-    server.shutdown()
-
-
-# ---------------------------------------------------------------- 语音模型
-
-
-# 语音识别模型：微信输入法的离线语音包（腾讯的，不随 WowType 分发），用户在「语音」页点下载。
-# 地址、大小、MD5 和 voice/src/wtlocal/pack.rs 一致（那边有测试对这三个值）
-VOICE_MODEL_URL = os.environ.get("WOWTYPE_VOICE_MODEL_URL") or "https://download.z.weixin.qq.com/publish_words/v1/ime_asr_decoder_model/20260710220526250_ime_asr_decoder_model.apk"  # noqa: E501
-VOICE_MODEL_SIZE = 102920639
-VOICE_MODEL_MD5 = "28386481eb94ff73b28ee3949c0cf690"
-# 测试用：换成本机的假服务和假包
-if os.environ.get("WOWTYPE_VOICE_MODEL_MD5"):
-    VOICE_MODEL_MD5 = os.environ["WOWTYPE_VOICE_MODEL_MD5"]
-    VOICE_MODEL_SIZE = int(os.environ.get("WOWTYPE_VOICE_MODEL_SIZE") or 0)
-# 解开后模型和词表大约多大（界面上提示用）
-VOICE_MODEL_DISK = 130 * 1000 * 1000
-# 语音包（.apk 其实是 zip）里套着的模型包，只要里面的 *.xnet 和词表
-VOICE_MODEL_INNER = "ime_asr_decoder_model.zip"
-VOICE_MODEL_DICT = "dict.decoder.utf8.txt"
-VOICE_MODEL_NOTE = ("语音模型是微信输入法的离线语音包，属于腾讯，从腾讯的服务器下载，WowType 不分发它；"
-                    "和这台电脑装没装微信输入法无关。")
-
-
-def voice_model_ready(folder=None):
-    """语音模型在不在（和 voice/src/wtlocal/download.rs 的 is_ready 一样：有 .xnet 和词表）。"""
-    folder = folder or VOICE_MODEL_DIR
-    try:
-        names = os.listdir(folder)
-    except OSError:
-        return False
-    return VOICE_MODEL_DICT in names and any(n.endswith(".xnet") for n in names)
-
-
-def unpack_voice_model(pack, folder):
-    """从语音包里解出模型和词表到 folder：先解到旁边的临时目录，齐了再换进去。
-
-    只取内层模型包里的 *.xnet 和词表，扁平解出（不认包里的路径），别的不要。
-    坏包抛 ValueError，原来的 folder 不动。"""
-    import io
-    import zipfile
-    staging = folder + ".new"
-    shutil.rmtree(staging, ignore_errors=True)
-    os.makedirs(staging)
-    try:
-        try:
-            with zipfile.ZipFile(pack) as outer:
-                inner_data = outer.read(VOICE_MODEL_INNER)
-            with zipfile.ZipFile(io.BytesIO(inner_data)) as inner:
-                for info in inner.infolist():
-                    name = info.filename.replace("\\", "/").rsplit("/", 1)[-1]
-                    if info.is_dir() or not (name.endswith(".xnet") or name == VOICE_MODEL_DICT):
-                        continue
-                    with inner.open(info) as src, open(os.path.join(staging, name), "wb") as out:
-                        shutil.copyfileobj(src, out)
-        except (zipfile.BadZipFile, KeyError) as e:
-            raise ValueError(f"语音包格式不对：{e}") from e
-        if not voice_model_ready(staging):
-            raise ValueError("语音包里没有模型或词表，不安装")
-        old = folder + ".old"
-        shutil.rmtree(old, ignore_errors=True)
-        if os.path.exists(folder):
-            os.replace(folder, old)
-        os.replace(staging, folder)
-        shutil.rmtree(old, ignore_errors=True)
-    except BaseException:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
-
-
-def install_voice_model(folder=None, pack=None, url=None, md5=None, size=None,
-                        progress=None, cancelled=None):
-    """下载语音包（断了能接着下）、核对大小和 MD5、解出模型。给了 pack 就用这个文件，不下载。
-
-    下载的包放在 folder 旁边（wtlocal.apk），装好后删掉。取消抛 DownloadCancelled（.part 留着下次续），
-    校验不过抛 ValueError（下载的坏包删掉），网络出错抛 OSError。返回模型占的字节数。"""
-    folder = folder or VOICE_MODEL_DIR
-    md5 = (md5 or VOICE_MODEL_MD5).lower()
-    size = VOICE_MODEL_SIZE if size is None else size
-    downloaded = pack is None
-    if downloaded:
-        pack = folder + ".apk"
-        if not os.path.isfile(pack):
-            download_model(pack, url or VOICE_MODEL_URL, md5, progress=progress,
-                           cancelled=cancelled, algo="md5")
-    try:
-        have = os.path.getsize(pack)
-        if have != size:
-            raise ValueError(f"语音包大小不对：{have} 字节，应该是 {size} 字节")
-        if _digest_of(pack, "md5").hexdigest() != md5:
-            raise ValueError("语音包校验不对（MD5 不一致）")
-        unpack_voice_model(pack, folder)
-    finally:
-        # 下载的包用完（或者是坏的）就删掉；用户给的文件留着
-        if downloaded and os.path.exists(pack):
-            os.unlink(pack)
-    return dir_size(folder)
-
-
-def remove_voice_model(folder=None):
-    """删掉语音模型（连同没下完的包），返回空出的字节数。"""
-    folder = folder or VOICE_MODEL_DIR
-    size = 0
-    for path in (folder, folder + ".apk", folder + ".apk.part", folder + ".part",
-                 folder + ".tmp", folder + ".new", folder + ".old"):
-        try:
-            if os.path.isdir(path):
-                size += dir_size(path)
-                shutil.rmtree(path, ignore_errors=True)
-            elif os.path.exists(path):
-                size += os.path.getsize(path)
-                os.unlink(path)
-        except OSError:
-            pass
-    return size
-
-
-def voice_model_cli(args):
-    """命令行：--install-voice-model [语音包.apk] 下载（或从文件）装上语音模型并打开语音输入，
-    --remove-voice-model 删掉模型并关掉语音输入。"""
-    values, extra = read_config()
-    if args[0] == "--remove-voice-model":
-        size = remove_voice_model()
-        values["Voice"] = "False"
-        print(f"已删除语音模型，空出 {human_size(size)}" if size else "没有语音模型")
-        log("删掉了语音模型（命令行）")
-    else:
-        source = args[1] if len(args) > 1 and not args[1].startswith("-") else None
-        if voice_model_ready() and source is None:
-            print(f"语音模型已经有了：{_home(VOICE_MODEL_DIR)}")
-        else:
-            if source is None:
-                print(VOICE_MODEL_NOTE)
-
-            def progress(done, total):
-                text = f"{human_size(done)} / {human_size(total)}" if total else human_size(done)
-                print(f"\r下载语音模型：{text}   ", end="", flush=True)
-            try:
-                size = install_voice_model(pack=source, progress=progress)
-            except KeyboardInterrupt:
-                print("\n已暂停，再跑一次会接着下")
-                return 130
-            print(f"\n语音模型装好了（{human_size(size)}）：{_home(VOICE_MODEL_DIR)}")
-            log("语音模型装好了（命令行）")
-        values["Voice"] = "True"
-    write_config(values, extra)
-    running = fcitx_call_sync("ReloadAddonConfig", GLib.Variant("(s)", ("wowtype",))) is not None
-    on = values["Voice"] == "True"
-    print(("语音输入已打开，按语音键（默认右 Alt）说话" if on else "语音输入已关闭") +
-          ("" if running else "，fcitx5 下次启动时生效"))
-    return 0
-
-
-def voice_model_self_test():
-    """语音模型：本机起一个假的 CDN，下载、续传、校验、解包、取消、删掉（不联网，不碰真模型）。"""
-    import http.server
-    import io
-    import tempfile
-    import zipfile
-
-    def make_pack(inner_files):
-        inner = io.BytesIO()
-        with zipfile.ZipFile(inner, "w") as z:
-            for name, data in inner_files.items():
-                z.writestr(name, data)
-        outer = io.BytesIO()
-        with zipfile.ZipFile(outer, "w") as z:
-            z.writestr("AndroidManifest.xml", b"x")
-            z.writestr(VOICE_MODEL_INNER, inner.getvalue())
-        return outer.getvalue()
-    good = make_pack({"model/encoder.xnet": os.urandom(200_000), "model/decoder.xnet": b"d" * 1000,
-                      f"model/{VOICE_MODEL_DICT}": "你\n好\n".encode(), "model/readme.txt": b"junk",
-                      "../../evil.xnet": b"evil"})
-    blob = {"data": good}
-
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def log_message(self, *_a):
-            pass
-
-        def do_GET(self):
-            data = blob["data"]
-            start = 0
-            if rng := self.headers.get("Range"):
-                start = int(rng.split("=")[1].split("-")[0])
-                if start >= len(data):
-                    self.send_response(416)
-                    self.end_headers()
-                    return
-                self.send_response(206)
-            else:
-                self.send_response(200)
-            self.send_header("Content-Length", str(len(data) - start))
-            self.end_headers()
-            self.wfile.write(data[start:])
-
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    url = f"http://127.0.0.1:{server.server_address[1]}/voice.apk"
-    md5 = hashlib.md5(good).hexdigest()
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            parent = os.path.join(tmp, "wowtype")
-            folder = os.path.join(parent, "wtlocal")
-            args = {"folder": folder, "url": url, "md5": md5, "size": len(good)}
-            assert not voice_model_ready(folder)
-            # 取消：什么也没装，.part 留着下次续
-            try:
-                install_voice_model(**args, cancelled=lambda: True)
-                raise AssertionError("取消应该报 DownloadCancelled")
-            except DownloadCancelled:
-                pass
-            assert not voice_model_ready(folder) and os.listdir(parent) == ["wtlocal.apk.part"]
-            # 接着下完、装上：只留 .xnet 和词表，不认包里的路径，包删掉
-            seen = []
-            assert install_voice_model(**args, progress=lambda d, t: seen.append(d)) > 0
-            assert voice_model_ready(folder)
-            assert sorted(os.listdir(folder)) == sorted(["encoder.xnet", "decoder.xnet",
-                                                         "evil.xnet", VOICE_MODEL_DICT])
-            assert os.listdir(parent) == ["wtlocal"] and sorted(os.listdir(tmp)) == ["wowtype"]
-            assert seen and seen[-1] == len(good)
-            # MD5 不对：报错，坏包删掉，装好的那份不动
-            for bad_args in ({"md5": "0" * 32}, {"size": len(good) + 1}):
-                try:
-                    install_voice_model(**{**args, **bad_args})
-                    raise AssertionError(f"应该失败：{bad_args}")
-                except ValueError:
-                    pass
-                assert voice_model_ready(folder) and os.listdir(parent) == ["wtlocal"]
-            # 内容不全的包不装，原来的留着
-            bad = make_pack({"model/readme.txt": b"x"})
-            blob["data"] = bad
-            try:
-                install_voice_model(**{**args, "md5": hashlib.md5(bad).hexdigest(), "size": len(bad)})
-                raise AssertionError("没有模型的包应该装不上")
-            except ValueError:
-                pass
-            assert voice_model_ready(folder) and os.listdir(parent) == ["wtlocal"]
-            # 服务器出错（404）：OSError
-            server.RequestHandlerClass = type("Gone", (Handler,), {
-                "do_GET": lambda self: (self.send_response(404), self.end_headers())})
-            shutil.rmtree(folder)
-            try:
-                install_voice_model(**args)
-                raise AssertionError("404 应该失败")
-            except OSError:
-                pass
-            assert not voice_model_ready(folder)
-            # 从文件装；文件留着。不是 zip 的文件报 ValueError
-            pack = os.path.join(tmp, "x.apk")
-            with open(pack, "wb") as f:
-                f.write(good)
-            install_voice_model(folder, pack=pack, md5=md5, size=len(good))
-            assert voice_model_ready(folder) and os.path.exists(pack)
-            with open(pack, "wb") as f:
-                f.write(b"not a zip")
-            try:
-                install_voice_model(folder, pack=pack, md5=hashlib.md5(b"not a zip").hexdigest(),
-                                    size=9)
-                raise AssertionError("不是 zip 应该失败")
-            except ValueError:
-                pass
-            assert voice_model_ready(folder)
-            # 删掉
-            assert remove_voice_model(folder) > 0
-            assert not voice_model_ready(folder) and os.listdir(parent) == []
-            assert remove_voice_model(folder) == 0
-    finally:
-        server.shutdown()
-    print("voice model self-test ok")
-
-
 def human_size(n):
     return f"{n / 1e9:.2f} GB" if n >= 1e9 else f"{n / 1e6:.0f} MB"
-
-
-def read_translate_key(path=None):
-    try:
-        with open(path or TRANSLATE_KEY_FILE, encoding="utf-8") as f:
-            return f.readline().strip()
-    except OSError:
-        return ""
-
-
-def write_translate_key(key, path=None):
-    """存 Key：文件只有自己能读写（0600），空串就删掉文件。"""
-    path = path or TRANSLATE_KEY_FILE
-    key = key.strip()
-    if not key:
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            pass
-        return
-    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
-    tmp = path + ".tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.fchmod(fd, 0o600)
-        os.write(fd, (key + "\n").encode("utf-8"))
-    finally:
-        os.close(fd)
-    os.replace(tmp, path)
-
-
-def _api_base(base):
-    base = base.strip().rstrip("/")
-    if base.endswith("/chat/completions"):
-        base = base[: -len("/chat/completions")]
-    return base
-
-
-def chat_endpoint(base):
-    """和 core/src/translate.rs 的 TranslateConfig::endpoint 一样。"""
-    return _api_base(base) + "/chat/completions"
-
-
-def models_endpoint(base):
-    return _api_base(base) + "/models"
-
-
-def is_loopback_url(url):
-    host = urllib.parse.urlsplit(url.strip()).hostname or ""
-    return host in ("localhost", "::1") or host.startswith("127.") or host.endswith(".localhost")
-
-
-def provider_index(base):
-    """接口地址对应 TRANSLATE_PROVIDERS 里的第几个，对不上就是最后的「其他」。"""
-    base = _api_base(base)
-    for i, (_name, url, _model) in enumerate(TRANSLATE_PROVIDERS):
-        if url and _api_base(url) == base:
-            return i
-    return len(TRANSLATE_PROVIDERS) - 1
-
-
-def mask_url(url):
-    """诊断信息里只留协议和主机（有的代理把 Key 放在路径里）。"""
-    parts = urllib.parse.urlsplit(url.strip())
-    return f"{parts.scheme}://{parts.netloc.rpartition('@')[2]}/…" if parts.netloc else ""
-
-
-class TranslateError(Exception):
-    pass
-
-
-def api_request(url, key, body=None, timeout=20):
-    """调一次 OpenAI 格式的接口，返回解析好的 JSON；出错抛 TranslateError（给人看的话，抹掉了 Key）。"""
-    headers = {"User-Agent": f"WowType/{current_version()}", "Accept": "application/json"}
-    if key:
-        headers["Authorization"] = f"Bearer {key}"
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    request = urllib.request.Request(url, data=data, headers=headers)
-    # 本机的服务（Ollama 等）不走代理
-    handlers = [urllib.request.ProxyHandler({})] if is_loopback_url(url) else []
-    opener = urllib.request.build_opener(*handlers)
-
-    def clean(text):
-        text = text.replace(key, "***") if key and len(key) >= 4 else text
-        return text if len(text) <= 160 else text[:160] + "…"
-    try:
-        with opener.open(request, timeout=timeout) as response:
-            raw = response.read()
-    except urllib.error.HTTPError as e:
-        detail = ""
-        try:
-            payload = json.loads(e.read().decode("utf-8", "replace"))
-            error = payload.get("error")
-            detail = (error.get("message") if isinstance(error, dict) else error) \
-                or payload.get("message") or payload.get("detail") or ""
-        except (ValueError, AttributeError, OSError):
-            pass
-        hint = {401: "Key 不对", 403: "没有权限", 404: "地址或模型不对", 429: "请求太多或额度用完了"}.get(e.code)
-        text = f"服务返回 {e.code}" + (f"（{hint}）" if hint else "")
-        raise TranslateError(clean(f"{text}：{detail}" if detail else text)) from None
-    except urllib.error.URLError as e:
-        reason = e.reason
-        if isinstance(reason, TimeoutError) or "timed out" in str(reason):
-            raise TranslateError("请求超时") from None
-        raise TranslateError(clean(f"连不上：{reason}")) from None
-    except TimeoutError:
-        raise TranslateError("请求超时") from None
-    except OSError as e:
-        raise TranslateError(clean(f"连不上：{e}")) from None
-    try:
-        return json.loads(raw.decode("utf-8", "replace"))
-    except ValueError:
-        raise TranslateError("看不懂服务的返回（是 OpenAI 格式的接口吗？）") from None
-
-
-def fetch_models(base, key):
-    data = api_request(models_endpoint(base), key, timeout=15)
-    items = data.get("data") if isinstance(data, dict) else None
-    if not isinstance(items, list):
-        items = data.get("models", []) if isinstance(data, dict) else []
-    ids = {item.get("id") or item.get("name") for item in items if isinstance(item, dict)}
-    return sorted((i for i in ids if isinstance(i, str) and i), key=str.lower)
-
-
-def strip_think(text):
-    return re.sub(r"<think>.*?(</think>|$)", "", text, flags=re.S).strip()
-
-
-def test_translate(base, key, model, target="en", text="你好"):
-    """用一句话试一下服务，返回 (译文, 秒数)。"""
-    language = next((en for _, code, en in TRANSLATE_LANGUAGES if code == target), "English")
-    body = {
-        "model": model.strip(),
-        "messages": [
-            {"role": "system", "content": f"Translate the user's text into {language}. "
-                                          "Output only the translation."},
-            {"role": "user", "content": text},
-        ],
-    }
-    start = time.monotonic()
-    data = api_request(chat_endpoint(base), key, body, timeout=45)
-    seconds = time.monotonic() - start
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
-        raise TranslateError("看不懂服务的返回（是 OpenAI 格式的接口吗？）") from None
-    result = strip_think(content or "")
-    if not result:
-        raise TranslateError("服务返回了空的译文")
-    return result.splitlines()[0], seconds
 
 
 def dir_size(path):
@@ -4518,8 +3627,6 @@ class SettingsWindow(Adw.ApplicationWindow):
             ("general", "常规", "preferences-system-symbolic", self.build_general),
             ("input", "输入", "input-keyboard-symbolic", self.build_input),
             ("emoji", "表情", "face-smile-symbolic", self.build_emoji),
-            ("voice", "语音", "audio-input-microphone-symbolic", self.build_voice),
-            ("translate", "翻译", "preferences-desktop-locale-symbolic", self.build_translate),
             ("words", "自定义词", "accessories-dictionary-symbolic", self.build_words),
             ("update", "更新", "software-update-available-symbolic", self.build_update),
         )
@@ -4636,7 +3743,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         if row is not None and self.nav.get_selected_row() is not row:
             self.nav.select_row(row)
         # fcitx5 的快捷键可能在别处改过，切到这两页时重新看一眼
-        if name in ("input", "translate") and hasattr(self, "shift_free_row"):
+        if name == "input" and hasattr(self, "shift_free_row"):
             self.refresh_shift_conflict()
 
     # ---------------- 常规
@@ -4673,7 +3780,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.add_info(self.arrow_row,
                       "选「左右键移动光标」时，← → 把光标移进打了一半的拼音，打的字母插在光标处，"
                       "退格删光标前一个，Home、End、Delete 也管用；↑ ↓ 选词，到了一页的两头接着翻页。"
-                      "翻页用 Page Up / Page Down 或下面的翻页键。「译」里没有光标。")
+                      "翻页用 Page Up / Page Down 或下面的翻页键。")
         current = self.values.get("ArrowKeys", DEFAULTS["ArrowKeys"])
         self.arrow_row.set_selected(self.arrow_names.index(current) if current in self.arrow_names else 0)
         self.arrow_row.connect("notify::selected", self.on_arrow_keys_changed)
@@ -4721,7 +3828,6 @@ class SettingsWindow(Adw.ApplicationWindow):
             ("长句分段选", "先选开头的词，剩下的接着选"),
             ("忘掉学错的词", "光标移到候选上，按 Ctrl+Delete"),
             ("搜符号", "表情面板里打 gou → ✓、youjiantou → →"),
-            ("互译", "单按 Shift 切到「译」，打中文出外文"),
         ):
             tips.add_row(Adw.ActionRow(title=title, subtitle=subtitle))
         help_group.add(tips)
@@ -5027,8 +4133,6 @@ class SettingsWindow(Adw.ApplicationWindow):
         fcitx_note = "\n\nfcitx5 自己的快捷键（比如 Ctrl+空格）先处理，设成它们 WowType 收不到，这一行会提示。"
         self.key_rows = {
             "ToggleKey": self.make_key_row("ToggleKey", "另设一个切换键", TOGGLE_KEYS, TOGGLE_KEY_INFO + fcitx_note),
-            "TranslateModeKey": self.make_key_row("TranslateModeKey", "互译的快捷键", TRANSLATE_MODE_KEYS,
-                                                  TRANSLATE_MODE_KEY_INFO + fcitx_note),
         }
         for row in self.key_rows.values():
             switch.add(row)
@@ -5101,7 +4205,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         association = self.make_switch("Association", "联想", "上屏以后给出常跟在后面的词，按 Tab 选")
         self.add_info(association, "联想出来以后接着打字、数字、标点、空格、回车都照常，不会选到联想；"
                                    "按 Tab 进联想行，再用空格、回车或数字上屏，Esc 退出，也可以用鼠标点。"
-                                   "五笔、互译和密码框里不出。")
+                                   "五笔和密码框里不出。")
         extras.add(association)
         auto_space = Adw.ExpanderRow(
             title="中英文之间自动加空格", subtitle="第5章 → 第 5 章", show_enable_switch=True)
@@ -5127,7 +4231,6 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.calc_row.set_subtitle(f"{name}时打大写 V：V1+2*3 → 7" if name else "v1+2*3 → 7")
         self.toolbar_row.set_sensitive(not name)
         self.toolbar_row.set_subtitle(f"{name}时不可用" if name else "打 v 再按空格：剪贴板、常用语、符号、表情")
-        # 用不了时显示成关着（不改设置，换回全拼还是原来的），和语音开关没模型时一样
         self.quiet_switch = True
         self.toolbar_row.set_active(not name and self.values["Toolbar"] == "True")
         self.quiet_switch = False
@@ -5297,11 +4400,10 @@ class SettingsWindow(Adw.ApplicationWindow):
 
     def on_key_row_changed(self, key, row):
         self.set_value(key, row.key_names[row.get_selected()])
-        self.refresh_translate_status()
+        self.refresh_key_hints()
 
     def refresh_key_hints(self):
-        """快捷键也是 fcitx5 的全局快捷键时（Ctrl+空格默认就是）说一声：fcitx5 先拿走，WowType 收不到。
-        互译键设了、互译却没开时也说一声。"""
+        """提示被 fcitx5 全局快捷键占用的切换键。"""
         for key, row in self.key_rows.items():
             value = self.values.get(key, "")
             taken = fcitx_hotkey_taking(value, getattr(self, "fcitx_hotkey", None))
@@ -5310,12 +4412,11 @@ class SettingsWindow(Adw.ApplicationWindow):
                                  "WowType 收不到，先在 Fcitx 5 配置里删掉它")
                 row.add_css_class("wt-warning")
                 continue
-            idle = key == "TranslateModeKey" and value and not self.translate_on()
-            row.set_subtitle("先在「翻译」页打开互译" if idle else "")
+            row.set_subtitle("")
             row.remove_css_class("wt-warning")
 
     def refresh_shift_conflict(self):
-        """看 fcitx5 有没有用 WowType 要的 Shift 切输入法，更新「输入」「翻译」两页的提示。"""
+        """看 fcitx5 有没有用 WowType 要的 Shift 切输入法，更新输入页的提示。"""
         toggle = self.values.get("ShiftToggle", "Both")
 
         def done(config):
@@ -5339,7 +4440,7 @@ class SettingsWindow(Adw.ApplicationWindow):
                 row.set_subtitle(f"{side} 被 fcitx5 用来「{option}」，打开就让给 WowType")
                 self.shift_free_info.set_text(
                     f"fcitx5 用{side}来「{option}」（比如切到 en 键盘），WowType 收不到，"
-                    f"单按{side} 切不到英文和「译」。打开这个开关就让给 WowType，关掉再还给 fcitx5。")
+                    f"单按{side} 切不到英文。打开这个开关就让给 WowType，关掉再还给 fcitx5。")
                 row.add_css_class("wt-warning")
             elif unsaved:
                 row.set_subtitle("只在这次有效，下次启动 fcitx5 又会拿走")
@@ -5352,7 +4453,7 @@ class SettingsWindow(Adw.ApplicationWindow):
                 row.set_subtitle(f"已让出；{switch_hint}")
                 self.shift_free_info.set_text("fcitx5 不再用 Shift 切输入法。关掉这个开关就还给 fcitx5。")
                 row.remove_css_class("wt-warning")
-            self.refresh_translate_status()
+            self.refresh_key_hints()
         self.fcitx.get_config(GLOBAL_URI, done)
 
     def on_shift_free_toggled(self, row, _param):
@@ -5568,640 +4669,6 @@ class SettingsWindow(Adw.ApplicationWindow):
             self.fcitx.restart(done)
         self.confirm("重启输入法？", "WowType 的新版要重启输入法才生效。" + RESTART_NOTE, "重启输入法", restart)
 
-    # ---------------- 语音
-
-    def build_voice(self):
-        page = self.new_page()
-        group = Adw.PreferencesGroup(title="语音输入")
-        group.set_header_suffix(self.info_button(
-            "按住语音键说话，松开就上屏；或者点一下语音键开始说，停顿一会儿自动上屏。"
-            "说的时候按 Esc 取消。正在打拼音时语音键不起作用。"))
-        self.voice_row = self.make_switch("Voice", "语音输入", "")
-        group.add(self.voice_row)
-
-        current = self.values["VoiceKey"]
-        labels = [label for label, _ in VOICE_KEYS]
-        self.voice_keys = [name for _, name in VOICE_KEYS]
-        if current not in self.voice_keys:
-            labels.append(f"其他（{current}）")
-            self.voice_keys.append(current)
-        self.key_row = Adw.ComboRow(title="语音键", model=Gtk.StringList.new(labels))
-        self.key_row.set_selected(self.voice_keys.index(current))
-        self.key_row.connect("notify::selected", lambda row, _p: self.set_value(
-            "VoiceKey", self.voice_keys[row.get_selected()]))
-        self.switches["Voice"].bind_property("active", self.key_row, "sensitive",
-                                             GObject.BindingFlags.SYNC_CREATE)
-        group.add(self.key_row)
-        copy_row = self.make_switch("VoiceCopy", "同时复制到剪贴板", "要装 wl-clipboard 或 xclip")
-        self.switches["Voice"].bind_property("active", copy_row, "sensitive",
-                                             GObject.BindingFlags.SYNC_CREATE)
-        group.add(copy_row)
-        page.add(group)
-
-        model = Adw.PreferencesGroup(title="识别模型")
-        model.set_header_suffix(self.info_button(
-            f"在本机识别，录音不上传。{VOICE_MODEL_NOTE}\n\n模型放在 {_home(VOICE_MODEL_DIR)}。"))
-        self.model_row = Adw.ActionRow(title="语音模型")
-        self.voice_download = Gtk.Button(label="下载", valign=Gtk.Align.CENTER)
-        self.voice_download.add_css_class("suggested-action")
-        self.voice_download.connect("clicked", self.on_voice_download)
-        self.model_row.add_suffix(self.voice_download)
-        self.voice_delete = Gtk.Button(icon_name="user-trash-symbolic", valign=Gtk.Align.CENTER,
-                                       tooltip_text="删除语音模型（语音输入会关掉）")
-        self.voice_delete.add_css_class("flat")
-        self.voice_delete.connect("clicked", self.on_voice_delete)
-        self.model_row.add_suffix(self.voice_delete)
-        model.add(self.model_row)
-        self.voice_cancel = None
-        self.voice_error = None
-        self.refresh_voice_model()
-        page.add(model)
-        return page
-
-    def refresh_voice_model(self, progress=None):
-        """模型在不在决定语音输入能不能打开：没有模型时开关灰掉、显示成关着（不改配置）。"""
-        if not hasattr(self, "model_row"):
-            return
-        ready = voice_model_ready()
-        busy = self.voice_cancel is not None
-        if progress:
-            subtitle = progress
-        elif busy:
-            subtitle = None  # 进度由下载线程更新
-        elif ready:
-            subtitle = f"已下载（{human_size(dir_size(VOICE_MODEL_DIR))}）"
-        elif self.voice_error:
-            subtitle = f"没下载好：{self.voice_error}"
-        elif os.path.exists(VOICE_MODEL_DIR + ".apk.part"):
-            done = os.path.getsize(VOICE_MODEL_DIR + ".apk.part")
-            subtitle = f"下了 {human_size(done)} / {human_size(VOICE_MODEL_SIZE)}，可以接着下"
-        else:
-            subtitle = (f"要下载 {human_size(VOICE_MODEL_SIZE)}，"
-                        f"解开后约 {human_size(VOICE_MODEL_DISK)}")
-        if subtitle is not None:
-            self.model_row.set_subtitle(GLib.markup_escape_text(subtitle))
-        self.voice_download.set_label("取消" if busy else ("重试" if self.voice_error else "下载"))
-        self.voice_download.set_visible(busy or not ready)
-        self.voice_download.set_sensitive(progress != "正在解包…")
-        self.voice_delete.set_visible(ready and not busy)
-        # 开关：有模型才能开；显示的样子跟着模型走，但不在这里写配置
-        self.quiet_switch = True
-        self.voice_row.set_active(ready and self.values["Voice"] == "True")
-        self.quiet_switch = False
-        self.voice_row.set_sensitive(ready)
-        self.voice_row.set_subtitle("" if ready else "先在下面下载语音模型")
-
-    def on_voice_download(self, _button):
-        if self.voice_cancel is not None:
-            self.voice_cancel.set()
-            return
-        cancel = threading.Event()
-        self.voice_cancel = cancel
-        self.voice_error = None
-        self.refresh_voice_model("正在连接…")
-        log(f"开始下载语音模型到 {_home(VOICE_MODEL_DIR)}")
-
-        def progress(done, total):
-            text = (f"正在下载：{human_size(done)} / {human_size(total)}（{done * 100 // total}%）"
-                    if total else f"正在下载：{human_size(done)}")
-            if done and done == total:
-                text = "正在解包…"
-            GLib.idle_add(self.refresh_voice_model, text)
-
-        def work():
-            error = None
-            try:
-                install_voice_model(progress=progress, cancelled=cancel.is_set)
-            except DownloadCancelled:
-                error = ""
-            except ValueError as e:
-                error = str(e)
-            except OSError as e:
-                reason = getattr(e, "reason", None) or e
-                error = f"连不上下载服务器（{getattr(reason, 'strerror', None) or reason}）"
-            except Exception as e:  # noqa: BLE001  网络错误各式各样
-                error = str(e)
-            GLib.idle_add(self.voice_download_done, error)
-        threading.Thread(target=work, daemon=True).start()
-
-    def voice_download_done(self, error):
-        self.voice_cancel = None
-        if error == "":
-            log("语音模型下载暂停了")
-            self.toast("已暂停，再点下载会接着下")
-        elif error:
-            log(f"语音模型没下载好：{error}")
-            self.voice_error = error
-            self.toast(f"语音模型没下载好：{error}")
-        else:
-            # 用户自己点的下载：下完直接打开语音输入
-            log("语音模型下载好了，打开语音输入")
-            self.values["Voice"] = "True"
-            self.save_config()
-            key = self.values["VoiceKey"]
-            self.toast(f"语音模型下载好了，按住{dict((n, l) for l, n in VOICE_KEYS).get(key, key)} 说话")
-        self.refresh_voice_model()
-        return GLib.SOURCE_REMOVE
-
-    def on_voice_delete(self, _button):
-        size = dir_size(VOICE_MODEL_DIR)
-        dialog = AlertDialog(
-            heading="删掉语音模型？",
-            body=f"空出 {human_size(size)}，语音输入会关掉。以后想用再到这里下载。")
-        dialog.add_response("cancel", "取消")
-        dialog.add_response("delete", "删除")
-        dialog.set_response_appearance("delete", ResponseAppearance.DESTRUCTIVE)
-
-        def answered(_dialog, response):
-            if response != "delete":
-                return
-            freed = remove_voice_model()
-            log("删掉了语音模型，关掉语音输入")
-            self.values["Voice"] = "False"
-            self.save_config()
-            self.voice_error = None
-            self.toast(f"已删除语音模型，空出 {human_size(freed)}，语音输入已关闭")
-            self.refresh_voice_model()
-        dialog.connect("response", answered)
-        dialog.present(self)
-
-    # ---------------- 翻译
-
-    def build_translate(self):
-        page = self.new_page()
-        intro = Adw.PreferencesGroup(title="互译")
-        intro.set_header_suffix(self.info_button(
-            "单按 Shift 切到「译」，照常打中文，停一下就翻成外文。"
-            "回车用译文，Shift+回车用原文，Esc 取消。打的是外文就翻成中文。"))
-        self.translate_row = self.make_switch("Translate", "互译", None)
-        self.translate_row.connect("notify::active", self.on_translate_toggled)
-        intro.add(self.translate_row)
-        self.target_codes = [code for _, code, _ in TRANSLATE_LANGUAGES]
-        self.target_row = Adw.ComboRow(
-            title="翻译成", model=Gtk.StringList.new([label for label, _, _ in TRANSLATE_LANGUAGES]))
-        self.add_info(self.target_row, "中文翻成这种语言；这种语言（和别的外文）翻成中文。")
-        current = self.values.get("TranslateTarget", "en")
-        self.target_row.set_selected(
-            self.target_codes.index(current) if current in self.target_codes else 0)
-        self.target_row.connect("notify::selected", lambda row, _p: self.set_value(
-            "TranslateTarget", self.target_codes[row.get_selected()]))
-        intro.add(self.target_row)
-        intro.add(self.make_switch("TranslateFormal", "正式语气", "默认是聊天的口吻"))
-        page.add(intro)
-
-        service = Adw.PreferencesGroup(title="翻译服务")
-        service.set_header_suffix(self.info_button(
-            "选一家服务商，填它给你的 Key，再挑一个模型。翻译要等服务回话，"
-            "名字里带 mini、flash、turbo 的小模型更快。\n\n"
-            "隐私：只在切到「译」时把打的字发给你选的服务，密码框里不翻译；WowType 自己不经手、不收集。"
-            f"Key 只存在这台电脑上（{_home(TRANSLATE_KEY_FILE)}）。"))
-        self.provider_row = Adw.ComboRow(
-            title="服务商", model=Gtk.StringList.new([name for name, _, _ in TRANSLATE_PROVIDERS]))
-        self.provider_syncing = True
-        self.provider_row.set_selected(provider_index(self.values["TranslateBaseUrl"]))
-        self.provider_syncing = False
-        self.provider_row.connect("notify::selected", self.on_provider_selected)
-        service.add(self.provider_row)
-
-        self.url_row = EntryRow(title="接口地址", show_apply_button=False)
-        self.url_row.set_input_purpose(Gtk.InputPurpose.URL)
-        self.url_row.set_text(self.values["TranslateBaseUrl"])
-        self.url_row.connect("changed", self.on_url_changed)
-        service.add(self.url_row)
-
-        self.key_entry = PasswordEntryRow(title="API Key（本机服务可以不填）")
-        self.key_entry.set_text(read_translate_key())
-        self.key_entry.connect("changed", self.on_key_changed)
-        service.add(self.key_entry)
-
-        self.tmodel_row = EntryRow(title="模型")
-        self.tmodel_row.set_text(self.values["TranslateModel"])
-        self.tmodel_row.connect("changed", lambda row: (
-            self.set_value("TranslateModel", row.get_text().strip()), self.refresh_translate_status()))
-        self.model_button = Gtk.MenuButton(icon_name="view-list-symbolic", valign=Gtk.Align.CENTER,
-                                           tooltip_text="从服务里挑模型")
-        self.model_button.add_css_class("flat")
-        self.model_button.set_popover(self.build_model_popover())
-        self.tmodel_row.add_suffix(self.model_button)
-        service.add(self.tmodel_row)
-
-        self.test_row = Adw.ActionRow(title="测试连接", subtitle="用「你好」试一下")
-        self.test_button = Gtk.Button(label="测试", valign=Gtk.Align.CENTER)
-        self.test_button.connect("clicked", self.on_test_translate)
-        self.test_row.add_suffix(self.test_button)
-        service.add(self.test_row)
-        self.service_group = service
-
-        # 用什么翻译：下拉菜单，默认本地模型；选「自定义」才出现填接口的地方
-        self.engine_row = Adw.ComboRow(
-            title="用什么翻译",
-            model=Gtk.StringList.new([label for label, _ in TRANSLATE_ENGINES]))
-        self.engine_row.set_selected(0 if self.values["TranslateLocal"] == "True" else 1)
-        self.engine_row.connect("notify::selected", self.on_translate_engine_changed)
-        intro.add(self.engine_row)
-        self.local_group = self.build_local_translate()
-        page.add(self.local_group)
-        page.add(service)
-        self.refresh_local_translate()
-        return page
-
-    def translate_local_selected(self):
-        return self.engine_row.get_selected() == 0
-
-    def on_translate_engine_changed(self, row, _param):
-        self.set_value("TranslateLocal", "True" if row.get_selected() == 0 else "False")
-        self.refresh_local_translate()
-
-    def build_local_translate(self):
-        group = Adw.PreferencesGroup(title="离线翻译模型")
-        group.set_header_suffix(self.info_button(
-            "腾讯混元的翻译模型 HY-MT。翻译时占 1.5 GB 左右内存，一会儿不用就自动释放。"
-            "找不到 llama-server 时一起下载 llama.cpp 官方的（MIT 许可）。\n\n"
-            + LOCAL_MODEL_TERMS, [("许可协议全文", LOCAL_MODEL_LICENSE)]))
-        self.local_model_row = Adw.ActionRow(title="翻译模型")
-        self.local_download = Gtk.Button(label="下载", valign=Gtk.Align.CENTER)
-        self.local_download.add_css_class("suggested-action")
-        self.local_download.connect("clicked", self.on_local_download)
-        self.local_model_row.add_suffix(self.local_download)
-        self.local_delete = Gtk.Button(icon_name="user-trash-symbolic", valign=Gtk.Align.CENTER,
-                                       tooltip_text="删除下载的模型")
-        self.local_delete.add_css_class("flat")
-        self.local_delete.connect("clicked", self.on_local_delete)
-        self.local_model_row.add_suffix(self.local_delete)
-        group.add(self.local_model_row)
-        self.local_cancel = None
-        self.local_stage = "model"
-
-        # 一般用不着的放进折叠项
-        more = Adw.ExpanderRow(title="更多选项")
-        idle = SpinRow.new_with_range(*RANGES["TranslateIdleMinutes"], 1)
-        idle.set_title("闲置几分钟后释放内存")
-        idle.set_subtitle("0 表示一直留着")
-        try:
-            idle.set_value(int(self.values["TranslateIdleMinutes"]))
-        except ValueError:
-            idle.set_value(int(DEFAULTS["TranslateIdleMinutes"]))
-        idle.connect("notify::value", lambda row, _p: self.set_value(
-            "TranslateIdleMinutes", str(int(row.get_value()))))
-        more.add_row(idle)
-        self.llama_status = Adw.ActionRow(title="运行模型的程序（llama-server）")
-        more.add_row(self.llama_status)
-        self.llama_row = EntryRow(title="llama-server 的位置（一般不用填）",
-                                      show_apply_button=False)
-        self.llama_row.set_text(self.values["TranslateLlamaServer"])
-        self.llama_row.connect("changed", lambda row: (
-            self.set_value("TranslateLlamaServer", row.get_text().strip()),
-            self.refresh_local_translate()))
-        more.add_row(self.llama_row)
-        group.add(more)
-        return group
-
-    def local_ready(self):
-        return os.path.isfile(local_model_path(self.values)) and bool(
-            find_llama_server(self.values["TranslateLlamaServer"]))
-
-    def local_missing(self):
-        """还差什么没下载：（要不要模型, 要不要 llama-server, 一共多少字节）。
-
-        llama-server 只在系统里没有、这台机器又有现成的官方包时才算。"""
-        want_model = not os.path.isfile(local_model_path(self.values))
-        asset = llama_asset()
-        want_llama = bool(asset) and not find_llama_server(self.values["TranslateLlamaServer"])
-        size = (LOCAL_MODEL_SIZE if want_model else 0) + (asset[1] if want_llama else 0)
-        return want_model, want_llama, size
-
-    def refresh_local_translate(self):
-        if not hasattr(self, "local_group"):
-            return
-        local = self.translate_local_selected()
-        self.engine_row.set_subtitle(TRANSLATE_ENGINES[0 if local else 1][1])
-        self.local_group.set_visible(local)
-        self.service_group.set_visible(not local)
-        path = local_model_path(self.values)
-        downloading = self.local_cancel is not None
-        server = find_llama_server(self.values["TranslateLlamaServer"])
-        mine = downloaded_llama_server()
-        want_model, want_llama, size = self.local_missing()
-        if downloading:
-            pass  # 进度由下载线程更新
-        elif not want_model and server:
-            self.local_model_row.set_subtitle(GLib.markup_escape_text(
-                f"已下载（{human_size(os.path.getsize(path))}）"))
-        elif not want_model and want_llama:
-            self.local_model_row.set_subtitle(GLib.markup_escape_text(
-                f"还差运行模型的程序（{human_size(size)}）"))
-        elif not want_model:
-            self.local_model_row.set_subtitle("还差 llama.cpp，见「更多选项」")
-        else:
-            self.local_model_row.set_subtitle(GLib.markup_escape_text(f"要下载 {human_size(size)}"))
-        self.local_download.set_label("取消" if downloading else "下载")
-        self.local_download.set_visible(downloading or want_model or want_llama)
-        self.local_delete.set_visible(
-            not downloading and not self.values["TranslateLocalModel"]
-            and (os.path.isfile(path) or bool(mine)))
-        if server and server == mine:
-            self.llama_status.set_subtitle(GLib.markup_escape_text(
-                f"已下载 llama.cpp {LLAMA_BUILD}：{_home(server)}"))
-        elif server:
-            self.llama_status.set_subtitle(GLib.markup_escape_text(f"用系统里装的：{server}"))
-        elif llama_asset():
-            self.llama_status.set_subtitle("下载模型时一起下载")
-        else:
-            self.llama_status.set_subtitle(
-                "没找到，请装发行版的 llama.cpp（NixOS：pkgs.llama-cpp）或在下面填位置")
-        self.refresh_translate_status()
-
-    def on_local_download(self, _button):
-        if self.local_cancel is not None:
-            self.local_cancel.set()
-            return
-        want_model, want_llama, size = self.local_missing()
-        if not want_model or os.path.exists(local_model_path(self.values) + ".part"):
-            # 只差 llama-server，或者模型下到一半（开始下时已经同意过许可）：不用再确认，接着下（和 macOS 一样）
-            self.start_local_download()
-            return
-        extra = ("同时下载运行模型的程序 llama-server（llama.cpp 官方发布，MIT 许可）。"
-                 if want_llama else "")
-        dialog = AlertDialog(
-            heading="下载离线翻译模型？",
-            body=f"一共 {human_size(size)}，下载完会校验文件。{extra}\n\n"
-                 f"{LOCAL_MODEL_TERMS}\n\n点「同意并下载」表示你接受这份许可。")
-        dialog.add_response("cancel", "取消")
-        dialog.add_response("accept", "同意并下载")
-        dialog.set_response_appearance("accept", ResponseAppearance.SUGGESTED)
-
-        def answered(_dialog, response):
-            if response == "accept":
-                self.start_local_download()
-        dialog.connect("response", answered)
-        dialog.present(self)
-
-    def start_local_download(self):
-        """把还差的都下了：模型，和系统里没有时的 llama-server。进度都显示在「翻译模型」那一行。
-
-        模型下到现在用的位置：设置里写了 TranslateLocalModel 就下到那里，没写下到 models/（和 macOS 一样），
-        下完就能用，不会出现下好了却还显示缺模型。"""
-        dest = local_model_path(self.values)
-        want_model, want_llama, _size = self.local_missing()
-        if self.local_cancel is not None or not (want_model or want_llama):
-            return
-        cancel = threading.Event()
-        self.local_cancel = cancel
-        self.local_model_row.set_subtitle("正在连接…")
-        self.refresh_local_translate()
-        log("开始下载：" + "、".join(
-            name for name, want in (("本地翻译模型", want_model), ("llama-server", want_llama)) if want))
-
-        def progress_of(what):
-            def progress(done, total):
-                text = (f"正在下载{what}：{human_size(done)} / {human_size(total)}（{done * 100 // total}%）"
-                        if total else f"正在下载{what}：{human_size(done)}")
-                GLib.idle_add(self.local_model_row.set_subtitle, text)
-            return progress
-
-        def work():
-            error = None
-            try:
-                if want_model:
-                    download_model(dest, progress=progress_of("模型"), cancelled=cancel.is_set)
-                if want_llama:
-                    install_llama_server(progress=progress_of("运行程序"), cancelled=cancel.is_set)
-            except DownloadCancelled:
-                error = "已暂停，再点下载会接着下"
-            except ValueError as e:
-                error = str(e)
-            except OSError as e:
-                error = f"下载失败：{getattr(e, 'reason', None) or e}"
-            GLib.idle_add(self.local_download_done, error)
-        threading.Thread(target=work, daemon=True).start()
-
-    def local_download_done(self, error):
-        self.local_cancel = None
-        if error:
-            log(f"本地翻译没下完：{error}")
-            self.toast(error)
-        else:
-            log("本地翻译下载完成，校验通过")
-            self.toast("下载好了，可以用离线翻译了" if self.local_ready() else "模型下载好了")
-        self.fcitx.reload()
-        self.refresh_local_translate()
-
-    def on_local_delete(self, _button):
-        """删掉下载的模型和 WowType 自己下载的 llama-server（系统里装的不动）。"""
-        path = local_model_path(self.values)
-        freed = os.path.getsize(path) if os.path.isfile(path) else 0
-        try:
-            if freed:
-                os.unlink(path)
-        except OSError as e:
-            self.toast(f"删不掉：{e.strerror}")
-        else:
-            remove_llama_server()
-            self.toast(f"已删除，空出 {human_size(freed)}" if freed else "已删除")
-            self.fcitx.reload()
-        self.refresh_local_translate()
-
-    def build_model_popover(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6,
-                      margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
-        self.model_search = Gtk.SearchEntry(placeholder_text="搜模型")
-        self.model_search.connect("search-changed", lambda _e: self.model_list.invalidate_filter())
-        box.append(self.model_search)
-        self.model_status = Gtk.Label(wrap=True, max_width_chars=36, xalign=0)
-        self.model_status.add_css_class("dim-label")
-        box.append(self.model_status)
-        self.model_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
-        self.model_list.add_css_class("navigation-sidebar")
-        self.model_list.set_filter_func(self.filter_model_row)
-        self.model_list.connect("row-activated", self.on_model_picked)
-        scroll = Gtk.ScrolledWindow(child=self.model_list, min_content_height=280,
-                                    min_content_width=320, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        box.append(scroll)
-        popover = Gtk.Popover(child=box)
-        popover.connect("show", lambda _p: self.load_models())
-        return popover
-
-    def filter_model_row(self, row):
-        query = self.model_search.get_text().strip().lower()
-        return not query or query in row.model_id.lower()
-
-    def load_models(self):
-        base = self.url_row.get_text().strip()
-        key = self.key_entry.get_text().strip()
-        self.model_search.set_text("")
-        if not base:
-            self.fill_models(None, "先填接口地址")
-            return
-        if self.models is not None and self.models_for == (base, key):
-            self.fill_models(self.models, None)
-            return
-        self.fill_models([], "正在获取模型列表…")
-        token = (base, key)
-        self.models_for = token
-
-        def work():
-            try:
-                result = (fetch_models(base, key), None)
-            except TranslateError as e:
-                result = (None, str(e))
-            GLib.idle_add(self.models_loaded, token, *result)
-        threading.Thread(target=work, daemon=True).start()
-
-    def models_loaded(self, token, models, error):
-        if token != self.models_for:
-            return
-        self.models = models
-        if models is None:
-            self.models_for = None
-            self.fill_models(None, f"获取失败：{error}。也可以直接在框里打模型名。")
-        elif not models:
-            self.fill_models([], "服务没有列出模型，直接在框里打模型名")
-        else:
-            self.fill_models(models, None)
-
-    def fill_models(self, models, status):
-        self.model_list.remove_all()
-        self.model_status.set_label(status or "")
-        self.model_status.set_visible(bool(status))
-        for model in models or []:
-            label = Gtk.Label(label=model, xalign=0, ellipsize=Pango.EllipsizeMode.MIDDLE)
-            row = Gtk.ListBoxRow(child=label)
-            row.model_id = model
-            self.model_list.append(row)
-
-    def on_model_picked(self, _list, row):
-        self.tmodel_row.set_text(row.model_id)
-        self.model_button.popdown()
-
-    def on_provider_selected(self, row, _param):
-        if self.provider_syncing:
-            return
-        _name, url, model = TRANSLATE_PROVIDERS[row.get_selected()]
-        if not url:  # 「其他」：留着现在的地址让用户改
-            self.url_row.grab_focus()
-            return
-        previous = self.tmodel_row.get_text().strip()
-        suggested = {m for _, _, m in TRANSLATE_PROVIDERS if m}
-        # 换地址时输入框先清空再填（中间会发一次空地址的 changed），这时不能回头改下拉框：
-        # 下拉框还在处理这次点击，选中项被改成「其他」再改回来，GTK 会在里面死循环
-        self.provider_syncing = True
-        try:
-            self.url_row.set_text(url)
-        finally:
-            self.provider_syncing = False
-        # 模型框空着（或者还是别家建议的模型）时换成这家建议的
-        if not previous or previous in suggested:
-            self.tmodel_row.set_text(model)
-
-    def on_url_changed(self, row):
-        text = row.get_text().strip()
-        self.set_value("TranslateBaseUrl", text)
-        # 自己改地址时下拉框跟着变；地址是下拉框填进来的就不用管
-        index = provider_index(text)
-        if not self.provider_syncing and self.provider_row.get_selected() != index:
-            self.provider_syncing = True
-            try:
-                self.provider_row.set_selected(index)
-            finally:
-                self.provider_syncing = False
-        self.refresh_translate_status()
-
-    def on_key_changed(self, _row):
-        if self.key_source:
-            GLib.source_remove(self.key_source)
-        self.key_source = GLib.timeout_add(400, self.save_translate_key)
-
-    def save_translate_key(self):
-        self.key_source = 0
-        try:
-            write_translate_key(self.key_entry.get_text())
-        except OSError as e:
-            self.toast(f"Key 保存失败：{e.strerror}")
-        return GLib.SOURCE_REMOVE
-
-    def on_translate_toggled(self, row, _param):
-        self.refresh_translate_status()
-        if row.get_active() and self.translate_ready():
-            key = self.translate_mode_key()
-            self.toast(f"按 {key_label(key)} 进出「译」" if key else "单按 Shift 两下切到「译」")
-
-    def translate_on(self):
-        """互译打开了，翻译也配好了：「译」进得去。"""
-        return self.values.get("Translate") == "True" and self.translate_ready()
-
-    def translate_mode_key(self):
-        """设了、fcitx5 也没占着的互译键；没有是空串。"""
-        key = self.values.get("TranslateModeKey", "")
-        return "" if fcitx_hotkey_taking(key, getattr(self, "fcitx_hotkey", None)) else key
-
-    def translate_ready(self):
-        if self.values.get("TranslateLocal") == "True":
-            return self.local_ready()
-        return bool(self.url_row.get_text().strip() and self.tmodel_row.get_text().strip())
-
-    def refresh_translate_status(self):
-        """「翻译」页互译那一行的副标题（怎么进「译」），连带「输入」页两个快捷键行的提示。"""
-        if not hasattr(self, "test_row"):
-            return
-        self.refresh_key_hints()
-        conflicts = getattr(self, "shift_conflicts", [])
-        toggle = self.values.get("ShiftToggle", "Both")
-        usable = [SHIFT_NAMES[s] for s in SHIFT_SIDES.get(toggle, ())
-                  if s not in {bare_shift(k) for _o, k in conflicts}]
-        key = self.translate_mode_key()
-        held = self.values.get("TranslateModeKey", "") if not key else ""
-        if not self.translate_ready():
-            self.translate_row.set_subtitle(
-                "先在下面下载翻译模型" if self.values.get("TranslateLocal") == "True"
-                else "先在下面填好翻译服务")
-        elif key:
-            self.translate_row.set_subtitle(f"按 {key_label(key)} 进出「译」")
-        elif held:
-            # 设了互译键，单按 Shift 就不进「译」了；键又被 fcitx5 拿走，哪个都进不去
-            self.translate_row.set_subtitle(f"互译的快捷键 {key_label(held)} 被 fcitx5 占着，先在 Fcitx 5 配置里删掉它")
-        elif toggle == "Off":
-            self.translate_row.set_subtitle("「输入」页关掉了 Shift 切换，切不到「译」；可以在那里设一个互译的快捷键")
-        elif conflicts:
-            taken = shift_side_names(conflicts)
-            self.translate_row.set_subtitle(
-                f"{taken} 被 fcitx5 占着；" + (f"用{'、'.join(usable)}，" if usable else "")
-                + "或到「输入」页让给 WowType")
-        else:
-            self.translate_row.set_subtitle("单按 Shift：中 → 英 → 译 → 中")
-
-    def on_test_translate(self, _button):
-        base = self.url_row.get_text().strip()
-        model = self.tmodel_row.get_text().strip()
-        key = self.key_entry.get_text().strip()
-        if not base or not model:
-            self.test_row.set_subtitle("先填接口地址和模型")
-            return
-        target = self.target_codes[self.target_row.get_selected()]
-        self.test_button.set_sensitive(False)
-        self.test_row.set_subtitle("正在连接…")
-
-        def work():
-            try:
-                text, seconds = test_translate(base, key, model, target)
-                result = (text, seconds, None)
-            except TranslateError as e:
-                result = (None, 0, str(e))
-            GLib.idle_add(self.test_finished, *result)
-        threading.Thread(target=work, daemon=True).start()
-
-    def test_finished(self, text, seconds, error):
-        self.test_button.set_sensitive(True)
-        if error:
-            self.test_row.set_subtitle(GLib.markup_escape_text(f"✗ {error}"))
-            log(f"测试翻译服务失败：{error}")
-            return
-        message = f"✓ 你好 → {text}（{seconds:.1f} 秒）"
-        if seconds > 2.5:
-            message += "，有点慢，可以换个小一点的模型"
-        self.test_row.set_subtitle(GLib.markup_escape_text(message))
-        log(f"测试翻译服务成功（{seconds:.1f} 秒）")
-
-    # ---------------- 自定义词
 
     def build_words(self):
         page = self.new_page()
@@ -6636,8 +5103,7 @@ class SettingsWindow(Adw.ApplicationWindow):
 
     def on_reset(self, *_args):
         dialog = AlertDialog(heading="恢复默认设置？",
-                                 body="排列方向、模糊音、语音键等回到默认值。自定义词和翻译服务"
-                                      "（地址、模型、Key）不受影响。")
+                                 body="排列方向、模糊音等回到默认值，自定义词不受影响。")
         dialog.add_response("cancel", "取消")
         dialog.add_response("reset", "恢复默认")
         dialog.set_response_appearance("reset", ResponseAppearance.DESTRUCTIVE)
@@ -6645,9 +5111,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         def answered(_dialog, response):
             if response != "reset":
                 return
-            keep = {key: self.values[key] for key in (
-                "TranslateBaseUrl", "TranslateModel", "TranslateLocal", "TranslateLocalModel",
-                "TranslateLlamaServer", "TranslateIdleMinutes", "Lexicon")}
+            keep = {"Lexicon": self.values["Lexicon"]}
             self.values = {**DEFAULTS, **keep}
             self.save_config()
             self.layout_row.set_selected(0)
@@ -6660,12 +5124,9 @@ class SettingsWindow(Adw.ApplicationWindow):
             self.shift_row.set_selected(0)
             self.fuzzy_row.set_enable_expansion(False)
             self.select_row.set_selected(0)
-            self.key_row.set_selected(self.voice_keys.index(DEFAULTS["VoiceKey"]))
-            self.refresh_voice_model()
             self.emoji_key_row.set_selected(self.emoji_keys.index(DEFAULTS["EmojiKey"]))
             for key, row in self.key_rows.items():
                 row.set_selected(row.key_names.index(DEFAULTS[key]))
-            self.target_row.set_selected(0)
             self.toast("已恢复默认设置")
         dialog.connect("response", answered)
         dialog.present(self)
@@ -6675,14 +5136,14 @@ class SettingsWindow(Adw.ApplicationWindow):
             application_name="WowType",
             application_icon="wowtype",
             developer_name="Gloridust",
-            version=VERSION if not VERSION.startswith("@") else "dev",
+            version=(VERSION if not VERSION.startswith("@") else "dev") + "（文字版）",
             website=HOMEPAGE,
             issue_url=HOMEPAGE + "/issues",
             license_type=Gtk.License.CUSTOM,
             license="代码按 MIT 或 Apache-2.0 双许可证发布。\n"
                     "词库数据来自 rime-ice（GPL-3.0）。\n"
-                    "语音模型属于腾讯微信输入法，在设置的「语音」页从腾讯服务器下载，不随 WowType 分发。",
-            comments="好用的拼音输入法：整句、简拼、按错键纠正、语音输入。")
+                    "",
+            comments="拼音输入法：整句、简拼、按错键纠正。")
         about.present(self)
 
 
@@ -6719,7 +5180,7 @@ class SettingsApp(Adw.Application):
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.page = None
         self.add_main_option("page", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
-                             "打开时显示的页面：general、input、emoji、voice、translate、words、update", "页面")
+                             "打开时显示的页面：general、input、emoji、words、update", "页面")
 
     def do_startup(self):
         Adw.Application.do_startup(self)
@@ -6793,19 +5254,6 @@ if __name__ == "__main__":
         else:
             print(f"已保存到 {export_diagnostics(os.path.abspath(target))}")
         sys.exit(0)
-    if "--download-model" in sys.argv:
-        sys.exit(download_model_cli("--accept-license" in sys.argv))
-    for flag in ("--install-voice-model", "--remove-voice-model"):
-        if flag in sys.argv:
-            at = sys.argv.index(flag)
-            try:
-                sys.exit(voice_model_cli(sys.argv[at:at + 2]))
-            except ValueError as e:
-                print(f"\n没装好：{e}")
-                sys.exit(1)
-            except OSError as e:
-                print(f"\n没下载好：{getattr(e, 'reason', None) or e}（再跑一次会接着下）")
-                sys.exit(1)
     for flag in ("--install-lexicon", "--use-lexicon"):
         if flag in sys.argv:
             at = sys.argv.index(flag)
@@ -6820,14 +5268,10 @@ if __name__ == "__main__":
         assert font_with_size("Sans 10", 14) == "Sans 14"
         assert font_with_size("Noto Sans CJK SC Bold 12", 16) == "Noto Sans CJK SC Bold 16"
         assert font_with_size("", 13) == "Sans 13"
-        download_self_test()
-        llama_self_test()
-        translate_engine_self_test()
         config_write_self_test()
         restart_self_test()
         setup_self_test()
         lexicon_update_self_test()
-        voice_model_self_test()
         lexicon_self_test()
         stale_copy_self_test()
         nnlm_self_test()
@@ -6895,64 +5339,6 @@ if __name__ == "__main__":
                 assert f.read().endswith("[Groups/0/Items/2]\nName=wowtype\nLayout=\n")
             assert "已经在" in profile_add_wowtype(profile)
             assert os.path.exists(profile + ".bak-wowtype")
-        # 互译：Key 文件、地址、调用 OpenAI 格式接口（本机起一个假服务）
-        assert chat_endpoint("https://x/v1/") == "https://x/v1/chat/completions"
-        assert chat_endpoint("https://x/v1/chat/completions") == "https://x/v1/chat/completions"
-        assert models_endpoint("https://x/v1/chat/completions") == "https://x/v1/models"
-        assert provider_index("https://api.deepseek.com/v1/") == 1
-        assert provider_index("https://example.com/v1") == len(TRANSLATE_PROVIDERS) - 1
-        assert is_loopback_url("http://127.0.0.1:11434/v1") and is_loopback_url("http://localhost/v1")
-        assert not is_loopback_url("https://api.openai.com/v1")
-        assert mask_url("https://user:tok@proxy.example.com/abc/v1") == "https://proxy.example.com/…"
-        assert [code for _, code, _ in TRANSLATE_LANGUAGES][:3] == ["en", "ja", "ko"]
-        assert strip_think("<think>嗯</think>Hello") == "Hello"
-        with tempfile.TemporaryDirectory() as tmp:
-            key_file = os.path.join(tmp, "wowtype", "translate.key")
-            write_translate_key(" sk-test \n", key_file)
-            assert read_translate_key(key_file) == "sk-test"
-            assert os.stat(key_file).st_mode & 0o777 == 0o600
-            write_translate_key("", key_file)
-            assert not os.path.exists(key_file) and read_translate_key(key_file) == ""
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
-        class Mock(BaseHTTPRequestHandler):
-            def reply(self, code, payload):
-                data = json.dumps(payload).encode()
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-
-            def do_GET(self):
-                self.reply(200, {"data": [{"id": "b-model"}, {"id": "A-model"}]})
-
-            def do_POST(self):
-                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-                if self.headers.get("Authorization") != "Bearer sk-ok":
-                    self.reply(401, {"error": {"message": "bad key sk-wrong"}})
-                    return
-                text = body["messages"][-1]["content"]
-                self.reply(200, {"choices": [{"message": {"content": f"<think>x</think>T:{text}"}}]})
-
-            def log_message(self, *_args):
-                pass
-        server = ThreadingHTTPServer(("127.0.0.1", 0), Mock)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        base = f"http://127.0.0.1:{server.server_address[1]}/v1"
-        assert fetch_models(base, "sk-ok") == ["A-model", "b-model"]
-        assert test_translate(base, "sk-ok", "m")[0] == "T:你好"
-        try:
-            test_translate(base, "sk-wrong", "m")
-            raise AssertionError("应该报 401")
-        except TranslateError as e:
-            assert "401" in str(e) and "Key 不对" in str(e) and "sk-wrong" not in str(e), e
-        server.shutdown()
-        try:
-            test_translate(base, "sk-ok", "m")
-            raise AssertionError("服务关了应该连不上")
-        except TranslateError as e:
-            assert "连不上" in str(e) or "超时" in str(e), e
         print("self-test ok")
         sys.exit(0)
     sys.exit((SettingsApp() if gui_supported() else OldSystemApp()).run(sys.argv))

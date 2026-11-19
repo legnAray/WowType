@@ -243,7 +243,7 @@ const char *wowtype_last_error(void);
 const char *wowtype_version(void);
 
 /*
- * 语音输入（核心带 voice 特性编译时才有，默认带）。
+ * 可选语音 ABI（仅显式启用 voice 特性时有实现；文字版默认不带）。
  *
  * 识别用微信输入法的离线模型：不随软件分发，由用户在设置界面（wowtype-config）里下载到
  * model_dir；这里只读不下载，第一次按热键时读进内存，之后常驻。没有模型时按热键，

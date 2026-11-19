@@ -47,10 +47,11 @@ anyhow = "1.0"
 # 会话读本地时间（日期时间候选）
 libc = "0.2"
 # 翻译：拼 OpenAI 格式的请求、解析流式返回
-serde_json = "1"
+serde_json = { version = "1", optional = true }
 # 语音输入（麦克风 + 微信离线识别模型）。Linux 需要 libasound2-dev
 wowtype-voice = { path = "../voice", features = ["capture"], optional = true }
 
 [features]
-default = ["voice"]
+default = []
 voice = ["dep:wowtype-voice"]
+translation = ["dep:serde_json"]

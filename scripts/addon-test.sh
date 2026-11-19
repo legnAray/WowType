@@ -2,8 +2,7 @@
 # 构建 fcitx5 插件并跑按键行为测试。
 #
 #   scripts/addon-test.sh [lexicon.tsv] [english.txt]
-#   WOWTYPE_VOICE_WAV=说的话.wav WOWTYPE_VOICE_EXPECT=期望的字 scripts/addon-test.sh ...  # 加跑语音
-#   WOWTYPE_HARNESS_DBUS=$DBUS_SESSION_BUS_ADDRESS ...   # 让插件连上会话总线（测语音浮条的信号）
+#   WOWTYPE_HARNESS_DBUS=$DBUS_SESSION_BUS_ADDRESS ...   # 使用指定的测试会话总线
 #
 # 起的是一个私有、无界面、无 D-Bus 的 fcitx5 实例（配置目录都在临时目录里），
 # 不会影响正在用的输入法。不给词库时用仓库里的 demo 词典，部分用例会因为缺词失败。
@@ -14,7 +13,7 @@ LEXICON=${1:-$PWD/core/data/demo_lexicon.tsv}
 ENGLISH=${2:-}
 BUILD=$(realpath -m "${WOWTYPE_ADDON_TEST_BUILD:-fcitx5-addon/build-test}")
 
-cargo build --release -p wowtype-core
+cargo build --release --no-default-features -p wowtype-core
 cmake -S fcitx5-addon -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DWOWTYPE_BUILD_TESTS=ON >/dev/null
 cmake --build "$BUILD" -j
 
@@ -22,9 +21,8 @@ cmake --build "$BUILD" -j
 python3 scripts/test-config-contract.py --fcitx5 "$BUILD/wowtype-config-dump"
 
 ROOT=$(mktemp -d)
-MOCK_PID=
 DBUS_PID=
-trap '[[ -n "$MOCK_PID" ]] && kill "$MOCK_PID" 2>/dev/null; [[ -n "$DBUS_PID" ]] && kill "$DBUS_PID" 2>/dev/null; rm -rf "$ROOT"' EXIT
+trap '[[ -n "$DBUS_PID" ]] && kill "$DBUS_PID" 2>/dev/null; rm -rf "$ROOT"' EXIT
 
 # 外部命令切模式的用例要会话总线：没给 WOWTYPE_HARNESS_DBUS 时起一条私有的（没有 dbus-daemon 时跳过）
 if [[ -z "${WOWTYPE_HARNESS_DBUS:-}" ]] && command -v dbus-daemon >/dev/null; then
@@ -32,15 +30,6 @@ if [[ -z "${WOWTYPE_HARNESS_DBUS:-}" ]] && command -v dbus-daemon >/dev/null; th
   DBUS_PID=$(cat "$ROOT/dbus.pid")
 fi
 
-# 互译用例：本机起一个假的 OpenAI 服务（没有 python3 或 curl 时跳过）
-TRANSLATE_URL=
-if command -v python3 >/dev/null && command -v curl >/dev/null; then
-  python3 fcitx5-addon/test/mock_openai.py > "$ROOT/mock.port" &
-  MOCK_PID=$!
-  for _ in $(seq 50); do [[ -s "$ROOT/mock.port" ]] && break; sleep 0.1; done
-  TRANSLATE_URL="http://127.0.0.1:$(head -1 "$ROOT/mock.port")/v1"
-  echo sk-harness > "$ROOT/translate.key"
-fi
 mkdir -p "$ROOT/data/fcitx5/addon" "$ROOT/data/fcitx5/inputmethod" "$ROOT/config/fcitx5"
 cp "$BUILD/wowtype-addon.conf" "$ROOT/data/fcitx5/addon/wowtype.conf"
 cp "$BUILD/wowtype.conf" "$ROOT/data/fcitx5/inputmethod/wowtype.conf"
@@ -83,15 +72,6 @@ Layout=
 0=Default
 PROFILE
 
-# 语音用例要真模型：给了 WOWTYPE_VOICE_WAV（代替麦克风的录音）才跑，模型默认用本机已下载的那份。
-# 没给时用一个空目录，跑「没有模型时按语音键只提示、不下载」
-VOICE_WAV=${WOWTYPE_VOICE_WAV:-}
-if [[ -n "$VOICE_WAV" ]]; then
-  VOICE_MODEL_DIR=${WOWTYPE_VOICE_MODEL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/wowtype/wtlocal}
-else
-  VOICE_MODEL_DIR="$ROOT/data/wowtype/wtlocal"
-fi
-
 SYSTEM_ADDONS=$(pkg-config --variable=libdir Fcitx5Core 2>/dev/null || echo /usr/lib/x86_64-linux-gnu)/fcitx5
 env -i PATH="$PATH" HOME="$ROOT" \
   XDG_DATA_HOME="$ROOT/data" XDG_CONFIG_HOME="$ROOT/config" XDG_RUNTIME_DIR="$ROOT" \
@@ -99,9 +79,6 @@ env -i PATH="$PATH" HOME="$ROOT" \
   FCITX_ADDON_DIRS="$BUILD:$SYSTEM_ADDONS" \
   WOWTYPE_LEXICON="$LEXICON" WOWTYPE_ENGLISH="$ENGLISH" WOWTYPE_LM="${WOWTYPE_LM:-}" WOWTYPE_LOG="${WOWTYPE_LOG:-0}" \
   WOWTYPE_USER_DICT="$ROOT/user.tsv" \
-  WOWTYPE_HARNESS_TRANSLATE_URL="$TRANSLATE_URL" WOWTYPE_TRANSLATE_KEY_FILE="$ROOT/translate.key" \
-  WOWTYPE_VOICE_WAV="$VOICE_WAV" WOWTYPE_VOICE_MODEL_DIR="$VOICE_MODEL_DIR" \
   DBUS_SESSION_BUS_ADDRESS="${WOWTYPE_HARNESS_DBUS:-}" \
   WOWTYPE_HARNESS_REAL_CLIPBOARD="${WOWTYPE_HARNESS_REAL_CLIPBOARD:-}" \
-  WOWTYPE_NO_UPDATE_CHECK=1 WOWTYPE_HARNESS_SHOW="${WOWTYPE_HARNESS_SHOW:-}" WOWTYPE_VOICE_EXPECT="${WOWTYPE_VOICE_EXPECT:-}" \
-  "$BUILD/wowtype-key-harness"
+  WOWTYPE_NO_UPDATE_CHECK=1 "$BUILD/wowtype-key-harness"
